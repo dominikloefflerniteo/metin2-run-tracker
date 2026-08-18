@@ -1,0 +1,31 @@
+name: g-status abgleichen
+
+# Holt die Channel-Neustartzeiten und schreibt sie in Supabase.
+# Einmal pro Stunde reicht: die Werte aendern sich nur bei einem Serverneustart.
+#
+# Voraussetzung — zwei Repository-Secrets (Settings -> Secrets and variables -> Actions):
+#   SUPABASE_URL  = https://ppafhxtcwyufesszhidv.supabase.co
+#   SUPABASE_KEY  = der publishable key (sb_publishable_...)
+#
+# Achtung: GitHub schaltet geplante Workflows in oeffentlichen Repos nach
+# 60 Tagen ohne Aktivitaet ab. Falls die Channel-Anzeige eines Tages alt
+# aussieht, hier einmal "Run workflow" druecken.
+
+on:
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: g-status holen und schreiben
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: node tools/fetch-gstatus.mjs

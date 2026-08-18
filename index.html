@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Metin2 Run-Tracker</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="icon" href="favicon.svg" />
+<link rel="stylesheet" href="app.css" />
+</head>
+<body class="locked">
+
+<header>
+  <div class="brand">Run<span>-Tracker</span></div>
+
+  <label class="hl" for="serverPick">Server</label>
+  <select class="txt" id="serverPick"></select>
+
+  <div class="grow"></div>
+
+  <div class="status" id="statusWrap" title="Verbindung zur gemeinsamen Datenbank">
+    <span class="dot" id="syncDot"></span>
+    <span id="syncText">nicht verbunden</span>
+  </div>
+  <button class="btn" id="btnSound" title="Ton an/aus">🔊</button>
+  <button class="btn" id="btnSettings">Einstellungen</button>
+  <button class="btn ghost" id="btnWho" title="Name ändern"></button>
+</header>
+
+<div class="boot-error" id="bootError" hidden></div>
+
+<section class="chbar" id="chbar">
+  <div class="chbar-head">
+    <span class="label">Channels <span class="dim" id="chServer"></span></span>
+    <span class="chbar-meta" id="chMeta">—</span>
+  </div>
+  <div class="chgrid" id="chGrid"></div>
+</section>
+
+<main>
+  <div class="toolbar">
+    <button class="btn primary" id="btnAddChar">+ Charakter</button>
+    <input class="txt" id="filter" placeholder="filtern (Char oder Spieler)…" />
+    <label class="chk"><input type="checkbox" id="onlyMine" /> nur meine</label>
+    <label class="chk"><input type="checkbox" id="groupOwner" checked /> nach Spieler gruppieren</label>
+    <div class="grow"></div>
+    <span class="hint">Klick auf <b>fertig</b> startet den Cooldown · Klick auf einen laufenden Timer öffnet ihn</span>
+  </div>
+
+  <div class="tablewrap">
+    <table id="grid">
+      <thead id="gridHead"></thead>
+      <tbody id="gridBody"></tbody>
+    </table>
+    <p class="empty" id="emptyHint" hidden>
+      Noch kein Charakter auf diesem Server. Oben links <b>+ Charakter</b>.
+    </p>
+  </div>
+</main>
+
+<!-- ------------------------------------------------------- Einstellungen -->
+<div class="modal" id="settings" hidden>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Einstellungen</h2>
+      <button class="btn ghost" id="btnCloseSettings">schließen</button>
+    </div>
+
+    <div class="modal-body">
+      <section class="card">
+        <div class="label">Gemeinsame Datenbank (Supabase)</div>
+        <p class="sub">
+          Ohne diese zwei Angaben läuft alles nur lokal in diesem Browser.
+          Beides bekommst du von Jogoe — <b>nicht öffentlich posten</b>, wer sie hat,
+          kann alle Timer lesen und ändern.
+        </p>
+        <label class="fl" for="sbUrl">Projekt-URL</label>
+        <input class="txt" id="sbUrl" placeholder="https://xxxx.supabase.co" spellcheck="false" />
+        <label class="fl" for="sbKey">Publishable Key</label>
+        <input class="txt" id="sbKey" placeholder="sb_publishable_…" spellcheck="false" />
+        <div class="row">
+          <button class="btn primary" id="btnConnect">Verbinden</button>
+          <span class="sub" id="connMsg"></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="label">Benachrichtigungen</div>
+        <label class="chk"><input type="checkbox" id="optSound" /> Ton, wenn ein Cooldown abläuft</label>
+        <label class="chk"><input type="checkbox" id="optNotify" /> Browser-Benachrichtigung</label>
+        <label class="chk"><input type="checkbox" id="optSpawn" /> auch für Channel-Spawns</label>
+        <div class="row">
+          <label class="fl inline" for="optLead">Vorwarnung</label>
+          <input class="txt small" id="optLead" type="number" min="0" max="600" step="5" />
+          <span class="sub">Sekunden vorher (0 = erst beim Ablauf)</span>
+        </div>
+        <div class="row">
+          <label class="fl inline" for="optVolume">Lautstärke</label>
+          <input id="optVolume" type="range" min="0" max="100" step="5" />
+          <button class="btn" id="btnTestSound">Ton testen</button>
+        </div>
+        <p class="sub" id="notifyState"></p>
+      </section>
+
+      <section class="card">
+        <div class="label">Eigene Töne</div>
+        <p class="sub">
+          Bleiben in diesem Browser (die anderen hören weiter ihren eigenen Ton).
+          Kurze Dateien nehmen — mp3/ogg/wav bis ca. 1 MB.
+        </p>
+        <div id="soundRows"></div>
+      </section>
+
+      <section class="card">
+        <div class="label">Runs &amp; Cooldowns</div>
+        <p class="sub">Gilt für alle. Dauer im Format <b>2h</b>, <b>20m</b>, <b>3h30m</b> oder <b>7d</b>.</p>
+        <table class="mini" id="runTable"></table>
+        <div class="row">
+          <input class="txt small" id="newRunLabel" placeholder="neuer Run" />
+          <input class="txt small" id="newRunDur" placeholder="z. B. 6h" />
+          <button class="btn" id="btnAddRun">hinzufügen</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- --------------------------------------------------------- Timer-Dialog -->
+<div class="modal" id="timerDlg" hidden>
+  <div class="modal-box narrow">
+    <div class="modal-head">
+      <h2 id="tdTitle">Timer</h2>
+      <button class="btn ghost" id="tdClose">schließen</button>
+    </div>
+    <div class="modal-body">
+      <p class="sub" id="tdInfo"></p>
+      <div class="row">
+        <label class="fl inline" for="tdRemain">Restzeit</label>
+        <input class="txt small" id="tdRemain" placeholder="1h20m" />
+        <button class="btn" id="tdSet">übernehmen</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="tdRestart">neu starten</button>
+        <button class="btn danger" id="tdClear">Timer löschen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ----------------------------------------------------------- Char-Dialog -->
+<div class="modal" id="charDlg" hidden>
+  <div class="modal-box narrow">
+    <div class="modal-head">
+      <h2 id="cdTitle">Charakter</h2>
+      <button class="btn ghost" id="cdClose">schließen</button>
+    </div>
+    <div class="modal-body">
+      <label class="fl" for="cdName">Name</label>
+      <input class="txt" id="cdName" maxlength="40" />
+      <label class="fl" for="cdServer">Server</label>
+      <select class="txt" id="cdServer"></select>
+      <label class="fl" for="cdOwner">Spieler</label>
+      <input class="txt" id="cdOwner" maxlength="40" />
+      <label class="fl" for="cdNote">Notiz</label>
+      <input class="txt" id="cdNote" maxlength="80" placeholder="z. B. Klasse, Level" />
+      <div class="row">
+        <button class="btn primary" id="cdSave">speichern</button>
+        <button class="btn danger" id="cdDelete">löschen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="gate.js"></script>
+<script src="util.js"></script>
+<script src="db.js"></script>
+<script src="channels.js"></script>
+<script src="alarm.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
