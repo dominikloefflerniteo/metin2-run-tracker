@@ -187,6 +187,18 @@
     return push('chars', c, 'id', ['id']);
   };
 
+  /* Ein- und Ausloggen. user = Name oder null (= Charakter ist wieder frei).
+     Nur ein Teil-Upsert, damit gleichzeitige Aenderungen an Name/Notiz nicht
+     ueberschrieben werden. */
+  DB.setLogin = function (charId, user) {
+    return push('chars', {
+      id: charId,
+      logged_in_by: user || null,
+      logged_in_at: user ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString()
+    }, 'id', ['id']);
+  };
+
   DB.deleteChar = function (id) {
     localDelete('timers', { char_id: id });
     localDelete('chars', { id: id });

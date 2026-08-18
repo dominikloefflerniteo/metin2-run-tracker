@@ -133,6 +133,60 @@
     td.appendChild(b);
   }
 
+  /* Wer sitzt gerade auf dem Charakter?
+     - frei:            [Login]
+     - ich bin drauf:   [du · 14:20] [Logout]
+     - jemand anderes:  [Dejan · 14:20] [Logout]   (Klick auf den Namen uebernimmt)
+     Ausgeloggt heisst: der Charakter gehoert gerade niemandem. */
+  function loginControls(c, into) {
+    var me = ZGATE.user();
+    var who = c.logged_in_by || '';
+
+    var b = U.el('button', 'login');
+    b.dataset.login = c.id;
+
+    if (!who) {
+      b.textContent = 'Login';
+      b.title = 'als eingeloggt markieren';
+      into.appendChild(b);
+      return;
+    }
+
+    var mine = who.toLowerCase() === me.toLowerCase();
+    b.classList.add('on');
+    if (mine) b.classList.add('mine');
+    b.textContent = (mine ? 'du' : who) + (c.logged_in_at ? ' · ' + U.fmtTime(c.logged_in_at) : '');
+    b.title = who + ' ist eingeloggt' +
+              (c.logged_in_at ? ' seit ' + new Date(c.logged_in_at).toLocaleString('de-AT') : '') +
+              (mine ? '' : ' — klicken, um zu übernehmen');
+    into.appendChild(b);
+
+    var out = U.el('button', 'login logout', 'Logout');
+    out.dataset.logout = c.id;
+    out.title = 'ausloggen — der Charakter ist dann frei';
+    into.appendChild(out);
+  }
+
+  function doLogin(id) {
+    var c = DB.data.chars.find(function (x) { return x.id === id; });
+    if (!c) return;
+    var me = ZGATE.user();
+    var who = c.logged_in_by || '';
+
+    if (who && who.toLowerCase() !== me.toLowerCase()) {
+      if (!confirm(who + ' ist auf "' + c.name + '" eingeloggt. Übernehmen?')) return;
+    } else if (who) {
+      return;   // ich bin schon drauf — dafür gibt es den Logout-Knopf
+    }
+    DB.setLogin(id, me);
+    render();
+  }
+
+  function doLogout(id) {
+    DB.setLogin(id, null);
+    render();
+  }
+
   function render() {
     var runs = DB.runTypes();
     buildHead(runs);
@@ -157,7 +211,10 @@
       tr.dataset.char = c.id;
 
       var name = U.el('td', 'td-char');
-      name.appendChild(U.el('b', null, c.name));
+      var line = U.el('div', 'charline');
+      line.appendChild(U.el('b', null, c.name));
+      loginControls(c, line);
+      name.appendChild(line);
       if (c.note) name.appendChild(U.el('span', 'note', c.note));
       tr.appendChild(name);
 
@@ -232,6 +289,8 @@
   /* ============================================================ Channels */
 
   function renderChannels() {
+    $('chBlock').hidden = !CH.SHOW_CHANNELS;
+    if (!CH.SHOW_CHANNELS) return;
     $('chServer').textContent = CH.SERVER;
     var rows = CH.forServer(DB.data.channels, CH.SERVER);
     var list = $('chGrid');
@@ -267,6 +326,7 @@
   }
 
   function tickChannels(now) {
+    if (!CH.SHOW_CHANNELS) return;
     var rows = CH.forServer(DB.data.channels, CH.SERVER, new Date(now));
     var lead = Math.max(0, ALARM.opts.lead || 0);
 
@@ -556,6 +616,10 @@
 
     /* Ein Klick in der Tabelle: fertig-Knopf oder laufender Timer. */
     $('gridBody').addEventListener('click', function (ev) {
+      var out = ev.target.closest('button[data-logout]');
+      if (out) return doLogout(out.dataset.logout);
+      var log = ev.target.closest('button[data-login]');
+      if (log) return doLogin(log.dataset.login);
       var edit = ev.target.closest('button[data-edit]');
       if (edit) return openCharDialog(edit.dataset.edit);
       var btn = ev.target.closest('button[data-char]');

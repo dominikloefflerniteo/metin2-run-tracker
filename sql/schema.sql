@@ -20,6 +20,8 @@ create table if not exists public.chars (
   server      text not null default 'Tigerghost',
   owner       text not null default '',        -- Name aus dem Login-Gate
   note        text not null default '',
+  logged_in_by text,                    -- wer gerade eingeloggt ist (leer = frei)
+  logged_in_at timestamptz,
   sort        int  not null default 0,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()

@@ -23,6 +23,12 @@
      diese eine Zeile. */
   CH.SERVER = 'Tigerghost';
 
+  /* Der Server, um den es gerade geht, steht NICHT auf g-status — die
+     Channel-Anzeige waere also nur falsche Sicherheit. Code und Cron bleiben,
+     die Anzeige ist ausgeblendet: auf true stellen, sobald der Server dort
+     auftaucht (oder CH.SERVER passt). */
+  CH.SHOW_CHANNELS = false;
+
   CH.SERVERS = [
     '[RUBY] Chimera',
     'Germania',

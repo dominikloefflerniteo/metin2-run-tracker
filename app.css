@@ -180,7 +180,27 @@ table#grid { border-collapse: separate; border-spacing: 0; width: 100%; }
   padding: 4px 9px !important; height: auto;
 }
 .grouprow + tr td { border-top: none; }
+.charline { display: flex; align-items: center; gap: 8px; }
 .td-char b { font-size: 13px; }
+
+.login {
+  font: inherit; font-size: 10px; cursor: pointer;
+  padding: 1px 7px; border-radius: 9px; white-space: nowrap;
+  background: transparent; color: var(--fg-dim);
+  border: 1px dashed var(--border);
+}
+.login:hover { color: var(--fg); border-color: var(--teal); }
+/* eingeloggt: fremd = teal, ich selbst = gelb (faellt beim Ueberfliegen auf) */
+.login.on {
+  border-style: solid; border-color: var(--teal);
+  color: var(--teal); background: rgba(58,170,193,.12);
+}
+.login.on.mine {
+  border-color: var(--accent); color: var(--accent); background: rgba(242,201,76,.14);
+  font-weight: 700;
+}
+.login.logout { border-style: solid; border-color: var(--border); color: var(--fg-dim); }
+.login.logout:hover { border-color: var(--danger); color: var(--danger); background: rgba(235,87,87,.1); }
 .td-char .note { display: block; font-size: 10.5px; color: var(--fg-dim); }
 .td-owner { color: var(--fg-dim); font-size: 12px; }
 .td-act { text-align: right; }

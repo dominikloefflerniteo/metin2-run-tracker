@@ -48,7 +48,7 @@ async function main() {
   ok($('bootError').hidden === false, 'ohne Supabase-Bibliothek erscheint der Hinweisbalken');
   ok(!doc.body.classList.contains('locked'), 'Gate ist entsperrt');
   ok(DB.runTypes().length === 6, '6 Runs voreingestellt: ' + DB.runTypes().map(r => r.label).join(', '));
-  ok(doc.querySelectorAll('#chGrid .chrow').length === 6, 'sechs Channel-Zeilen in der Seitenspalte');
+  ok($('chBlock').hidden === !CH.SHOW_CHANNELS, 'g-status-Channels folgen dem Schalter CH.SHOW_CHANNELS (' + CH.SHOW_CHANNELS + ')');
   ok(!$('emptyHint').hidden, 'Hinweis "noch kein Charakter" ist sichtbar');
 
   console.log('\n[Dauern lesen und schreiben]');
@@ -96,6 +96,44 @@ async function main() {
   click($('tdClear'));
   ok(DB.data.timers.length === 0, 'Timer geloescht');
   ok(doc.querySelectorAll('#gridBody .chip.ready').length === 6, 'alle Zellen wieder "bereit"');
+
+  console.log('\n[Login / wer sitzt drauf]');
+  const charRow = () => doc.querySelector('#gridBody tr[data-char]');
+  const loginBtn = () => charRow().querySelector('.login[data-login]');
+  const logoutBtn = () => charRow().querySelector('.login[data-logout]');
+
+  ok(loginBtn().textContent === 'Login', 'frei: der Knopf heißt "Login"');
+  ok(!logoutBtn(), 'und es gibt keinen Logout-Knopf');
+
+  click(loginBtn());
+  let ch = DB.data.chars[0];
+  ok(ch.logged_in_by === 'Jogoe', 'eingeloggt als Jogoe');
+  ok(!!ch.logged_in_at, 'mit Zeitstempel');
+  ok(/^du · \d\d:\d\d$/.test(loginBtn().textContent), 'zeigt "du · Uhrzeit": ' + loginBtn().textContent);
+  ok(loginBtn().classList.contains('mine'), 'eigener Login ist hervorgehoben');
+  ok(!!logoutBtn(), 'jetzt gibt es einen Logout-Knopf');
+
+  click(loginBtn());
+  ok(DB.data.chars[0].logged_in_by === 'Jogoe', 'nochmal Login ändert nichts (dafür ist Logout da)');
+
+  click(logoutBtn());
+  ch = DB.data.chars[0];
+  ok(ch.logged_in_by === null, 'ausgeloggt — der Charakter gehört wieder niemandem');
+  ok(ch.logged_in_at === null, 'Zeitstempel geleert');
+  ok(loginBtn().textContent === 'Login', 'Knopf wieder auf "Login"');
+
+  // Fremder Login: Übernahme nur nach Rückfrage.
+  DB.setLogin(ch.id, 'Dejan');
+  ok(loginBtn().textContent.indexOf('Dejan') === 0, 'fremder Login zeigt den Namen: ' + loginBtn().textContent);
+  ok(!loginBtn().classList.contains('mine'), 'und ist anders eingefärbt als der eigene');
+
+  window.confirm = () => false;
+  click(loginBtn());
+  ok(DB.data.chars[0].logged_in_by === 'Dejan', 'abgelehnte Rückfrage übernimmt nicht');
+  window.confirm = () => true;
+  click(loginBtn());
+  ok(DB.data.chars[0].logged_in_by === 'Jogoe', 'bestätigte Rückfrage übernimmt');
+  click(logoutBtn());
 
   console.log('\n[Anmeldung / Regi]');
   const cellOf = (run) => [...doc.querySelectorAll('#gridBody tr[data-char] td')]
@@ -189,11 +227,17 @@ async function main() {
   ok(DB.data.spawns.length === 1, 'unverständliche Zeit legt nichts an');
   ok($('spHint').classList.contains('bad'), 'und sagt es im Hinweis');
 
+  CH.SHOW_CHANNELS = true;                     // kurz einschalten, um die Zeile zu pruefen
+  DB.data.channels = [{ server: CH.SERVER, channel: 'CH3', status: 'online', last_restart: '2026-08-11 10:47:49', fetched_at: new Date().toISOString() }];
+  click($('btnAddChar')); $('cdClose').click();  // irgendein Ereignis -> neu zeichnen
+  DB.saveChar(DB.data.chars[0]);
   const chRow = doc.querySelector('#chGrid .chrow');
-  ok(!!chRow.querySelector('.chat'), 'auch die Channels zeigen jetzt die Uhrzeit');
+  ok(!!chRow && !!chRow.querySelector('.chat'), 'eingeschaltet zeigen auch die Channels die Uhrzeit');
+  CH.SHOW_CHANNELS = false;
 
   window.confirm = () => true;
-  spRow.querySelector('.spdel').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  // Zeile neu holen: zwischendurch wurde neu gezeichnet, die alte haengt frei.
+  click(doc.querySelector('#spawnList .sprow .spdel'));
   ok(DB.data.spawns.length === 0, 'Spawn gelöscht');
 
   console.log('\n[Gate]');

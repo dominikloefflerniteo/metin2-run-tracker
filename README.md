@@ -18,6 +18,12 @@ Balken statt einer stillen leeren Seite.
 
 - **Charaktere**, gruppiert nach Spieler. Cooldowns sind charaktergebunden
   (6/7 und Bio sind es im Spiel ohnehin).
+- **Login je Charakter.** Geteilte Charaktere wechseln oft den Spieler, deshalb
+  hat jede Zeile einen *Login*-Knopf: er markiert dich als eingeloggt und zeigt
+  allen, wer gerade draufsitzt (mit Uhrzeit). *Logout* gibt den Charakter wieder
+  frei — dann gehört er niemandem. Sitzt jemand anderes drauf, fragt ein Klick
+  auf seinen Namen, ob du übernehmen willst. Das ist unabhängig vom Feld
+  *Spieler*, das dauerhaft sagt, wem der Charakter gehört.
 - **Ein Klick = Cooldown läuft.** Der Knopf heißt überall *starten*; ob der
   Cooldown im Spiel ab dem Betreten oder ab dem Abschluss zählt, steht in der
   Spaltenüberschrift (`ab Start`) und ist pro Run einstellbar.
@@ -29,11 +35,12 @@ Balken statt einer stillen leeren Seite.
   die Uhrzeit in die Zelle; ein Klick darauf setzt sie zurück. Mit dem Start
   des Cooldowns gilt die Anmeldung als verbraucht und wird geleert — sonst
   bliebe eine Uhrzeit stehen, die nichts mehr bedeutet.
-- **Channel-Leiste**: je Channel Status, Countdown **und Uhrzeit** des nächsten
-  stündlichen Spawns. Es gibt **keine Server-Auswahl** — gespielt wird
-  auf einem Server, er steht als `CH.SERVER` in `channels.js` (aktuell
-  `Tigerghost`). Der Cron holt trotzdem den ganzen DE-Cluster, ein Wechsel ist
-  also diese eine Zeile.
+- **Channel-Leiste** aus g-status (Status, Countdown und Uhrzeit des nächsten
+  stündlichen Spawns) — **derzeit ausgeblendet**: der Server, um den es geht,
+  steht nicht auf g-status, die Anzeige wäre also nur falsche Sicherheit.
+  Schalter: `CH.SHOW_CHANNELS` in `channels.js`. Code und Cron laufen weiter,
+  ein Einschalten ist eine Zeile. Eine Server-Auswahl gibt es nicht, der Server
+  steht als `CH.SERVER` daneben.
 - **Eigene Spawns** in derselben Seitenspalte: Beschriftung (z. B.
   *Metins Wald CH1*) plus Takt eintragen, fertig. Verstanden werden `39:30`,
   `min39:30`, `:39`, `39` und mit Periode `39:30 /30m` bzw. `39:30 alle 15m`
@@ -60,8 +67,8 @@ füreinander ein.
 
 `sql/schema.sql` im SQL-Editor des Supabase-Projekts ausführen. Bei einer
 **bereits angelegten** Datenbank zusätzlich `sql/2026-08-18_registration.sql`
-(Anmeldung) und `sql/2026-08-18_spawns.sql` (eigene Spawns) — beide
-wiederholbar. Das Skript ist
+(Anmeldung), `sql/2026-08-18_spawns.sql` (eigene Spawns) und
+`sql/2026-08-18_login.sql` (Login je Charakter) — alle wiederholbar. Das Skript ist
 wiederholbar, ein zweiter Lauf schadet nicht. Es legt vier Tabellen an
 (`chars`, `timers`, `run_types`, `channels`), setzt RLS auf „anon darf alles"
 und schaltet Realtime ein.
