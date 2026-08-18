@@ -155,6 +155,47 @@ async function main() {
   ok(rows[0].tick.minute === 47, 'CH1 rechnet mit CH3s Minute, nicht mit 57');
   ok(rows[5].tick === null, 'CH6 ohne Daten bleibt leer');
 
+  console.log('\n[Eigene Spawns]');
+  ok(JSON.stringify(CH.parseSpawnTime('39:30')) === '{"minute":39,"second":30,"period_sec":3600}', '"39:30"');
+  ok(CH.parseSpawnTime('min39:30').minute === 39, '"min39:30" (so wie Dominik tippt)');
+  ok(CH.parseSpawnTime(':39').second === 0, '":39" = Minute 39, Sekunde 0');
+  ok(CH.parseSpawnTime('7').minute === 7, 'nackte Minute');
+  ok(CH.parseSpawnTime('39:30 /30m').period_sec === 1800, 'halbstündlich per "/30m"');
+  ok(CH.parseSpawnTime('39:30 alle 15m').period_sec === 900, '"alle 15m" geht auch');
+  ok(CH.parseSpawnTime('quatsch') === null, 'Unsinn wird abgelehnt');
+  ok(CH.parseSpawnTime('99:99') === null, 'unmögliche Zeit wird abgelehnt');
+
+  const t2 = { minute: 39, second: 30 };
+  ok(CH.secondsToNext(t2, new Date('2026-08-18T14:39:00')) === 30, 'stündlich: 30 s bis :39:30');
+  ok(CH.secondsToNext(t2, new Date('2026-08-18T14:40:00')) === 3570, 'nach dem Spawn die nächste Stunde');
+  ok(CH.secondsToNext(t2, new Date('2026-08-18T14:10:00'), 1800) === 1770, 'halbstündlich trifft auch :09:30');
+  ok(CH.secondsToNext(t2, new Date('2026-08-18T14:05:00'), 1800) === 270, 'und zwar als nächster Termin');
+
+  $('spLabel').value = 'Metins Wald CH1';
+  $('spTime').value = 'min39:30';
+  $('spawnAdd').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+  ok(DB.data.spawns.length === 1, 'Spawn gespeichert');
+  ok(DB.data.spawns[0].minute === 39 && DB.data.spawns[0].second === 30, 'Zeit übernommen');
+  ok(DB.data.spawns[0].by_user === 'Jogoe', 'Ersteller vermerkt');
+  const spRow = doc.querySelector('#spawnList .sprow');
+  ok(!!spRow && spRow.querySelector('.spname').textContent === 'Metins Wald CH1', 'steht in der Seitenspalte');
+  ok(/^\d+:\d\d/.test(spRow.querySelector('.chcd').textContent), 'mit Countdown: ' + spRow.querySelector('.chcd').textContent);
+  ok(/^\d\d:\d\d$/.test(spRow.querySelector('.chat').textContent), 'und mit Uhrzeit: ' + spRow.querySelector('.chat').textContent);
+  ok($('spLabel').value === '' && $('spTime').value === '', 'Formular wieder leer');
+
+  $('spLabel').value = 'Kaputt';
+  $('spTime').value = 'irgendwas';
+  $('spawnAdd').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+  ok(DB.data.spawns.length === 1, 'unverständliche Zeit legt nichts an');
+  ok($('spHint').classList.contains('bad'), 'und sagt es im Hinweis');
+
+  const chRow = doc.querySelector('#chGrid .chrow');
+  ok(!!chRow.querySelector('.chat'), 'auch die Channels zeigen jetzt die Uhrzeit');
+
+  window.confirm = () => true;
+  spRow.querySelector('.spdel').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  ok(DB.data.spawns.length === 0, 'Spawn gelöscht');
+
   console.log('\n[Gate]');
   const dom2 = new JSDOM(html, { runScripts: 'outside-only', url: 'http://localhost/' });
   dom2.window.eval(fs.readFileSync(path.join(__dirname, 'gate.js'), 'utf8'));

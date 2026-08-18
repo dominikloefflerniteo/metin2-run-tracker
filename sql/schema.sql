@@ -81,21 +81,38 @@ create table if not exists public.channels (
   primary key (server, channel)
 );
 
+-- ---------------------------------------------------------- Eigene Spawns
+-- Spawns, die g-status nicht kennt (Metins, Bosse). Der Takt ist Minute +
+-- Sekunde innerhalb der Periode; stuendlich ist die Vorgabe.
+create table if not exists public.spawns (
+  id          uuid primary key default gen_random_uuid(),
+  label       text not null,
+  minute      int  not null default 0,
+  second      int  not null default 0,
+  period_sec  int  not null default 3600,
+  sort        int  not null default 0,
+  by_user     text not null default '',
+  updated_at  timestamptz not null default now()
+);
+
 -- ------------------------------------------------------------------ RLS
 alter table public.chars     enable row level security;
 alter table public.timers    enable row level security;
 alter table public.run_types enable row level security;
 alter table public.channels  enable row level security;
+alter table public.spawns    enable row level security;
 
 drop policy if exists chars_all     on public.chars;
 drop policy if exists timers_all    on public.timers;
 drop policy if exists run_types_all on public.run_types;
 drop policy if exists channels_all  on public.channels;
+drop policy if exists spawns_all    on public.spawns;
 
 create policy chars_all     on public.chars     for all to anon using (true) with check (true);
 create policy timers_all    on public.timers    for all to anon using (true) with check (true);
 create policy run_types_all on public.run_types for all to anon using (true) with check (true);
 create policy channels_all  on public.channels  for all to anon using (true) with check (true);
+create policy spawns_all    on public.spawns    for all to anon using (true) with check (true);
 
 -- -------------------------------------------------------------- Realtime
 -- Ohne das kommen Aenderungen nicht per WebSocket bei den anderen an.
@@ -103,7 +120,7 @@ create policy channels_all  on public.channels  for all to anon using (true) wit
 do $$
 declare t text;
 begin
-  foreach t in array array['chars','timers','run_types','channels'] loop
+  foreach t in array array['chars','timers','run_types','channels','spawns'] loop
     if not exists (
       select 1 from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t

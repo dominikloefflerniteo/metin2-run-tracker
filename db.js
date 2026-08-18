@@ -19,7 +19,7 @@
   var CRED_KEY  = 'm2rt.supabase.v1';
   var CACHE_KEY = 'm2rt.cache.v1';
 
-  var TABLES = ['chars', 'timers', 'run_types', 'channels'];
+  var TABLES = ['chars', 'timers', 'run_types', 'channels', 'spawns'];
 
   var DEFAULT_RUN_TYPES = [
     { key: 'hydra',  label: 'Hydra',     seconds: 20 * 60,   from_start: true,  color: '#e0574f', sort: 10, enabled: true },
@@ -33,7 +33,7 @@
   var DB = window.DB = {
     connected: false,
     creds: U.store.get(CRED_KEY, { url: '', key: '' }),
-    data: { chars: [], timers: [], run_types: DEFAULT_RUN_TYPES.slice(), channels: [] },
+    data: { chars: [], timers: [], run_types: DEFAULT_RUN_TYPES.slice(), channels: [], spawns: [] },
     status: { state: 'off', text: 'nur lokal' },
     DEFAULT_RUN_TYPES: DEFAULT_RUN_TYPES
   };
@@ -60,6 +60,7 @@
     var cached = U.store.get(CACHE_KEY, null);
     if (cached && cached.chars) {
       DB.data = cached;
+      if (!DB.data.spawns) DB.data.spawns = [];   // aelterer Zwischenspeicher
       if (!DB.data.run_types || !DB.data.run_types.length) {
         DB.data.run_types = DEFAULT_RUN_TYPES.slice();
       }
@@ -257,6 +258,23 @@
         if (res.error) setStatus('bad', 'Löschen fehlgeschlagen: ' + res.error.message);
         return true;
       });
+  };
+
+  DB.saveSpawn = function (sp) {
+    sp.updated_at = new Date().toISOString();
+    return push('spawns', sp, 'id', ['id']);
+  };
+
+  DB.deleteSpawn = function (id) {
+    localDelete('spawns', { id: id });
+    if (!client) return Promise.resolve(true);
+    return client.from('spawns').delete().eq('id', id).then(function () { return true; });
+  };
+
+  DB.spawns = function () {
+    return DB.data.spawns.slice().sort(function (a, b) {
+      return (a.sort || 0) - (b.sort || 0) || String(a.label).localeCompare(String(b.label));
+    });
   };
 
   DB.saveRunType = function (rt) {

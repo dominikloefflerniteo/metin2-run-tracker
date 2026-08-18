@@ -51,6 +51,20 @@
       <div class="side-head">Spawns <span class="dim" id="chServer"></span></div>
       <ul class="chlist" id="chGrid"></ul>
       <div class="side-foot" id="chMeta">—</div>
+
+      <div class="side-sep"></div>
+
+      <div class="side-head">Eigene Spawns</div>
+      <ul class="chlist" id="spawnList"></ul>
+      <p class="side-empty" id="spawnEmpty">noch keine — unten eintragen</p>
+      <form class="spawnadd" id="spawnAdd" autocomplete="off">
+        <input class="txt" id="spLabel" placeholder="Metins Wald CH1" maxlength="40" />
+        <div class="spawnadd-row">
+          <input class="txt" id="spTime" placeholder="39:30" maxlength="16" />
+          <button class="btn" type="submit" title="Spawn hinzufügen">+</button>
+        </div>
+        <span class="side-foot" id="spHint">Minute:Sekunde im Takt · „39:30 /30m" für halbstündlich</span>
+      </form>
     </aside>
   </div>
 </main>

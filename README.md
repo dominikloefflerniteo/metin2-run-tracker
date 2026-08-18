@@ -29,11 +29,15 @@ Balken statt einer stillen leeren Seite.
   die Uhrzeit in die Zelle; ein Klick darauf setzt sie zurück. Mit dem Start
   des Cooldowns gilt die Anmeldung als verbraucht und wird geleert — sonst
   bliebe eine Uhrzeit stehen, die nichts mehr bedeutet.
-- **Channel-Leiste**: je Channel Status, Neustart-Minute und der Countdown zum
-  nächsten stündlichen Spawn. Es gibt **keine Server-Auswahl** — gespielt wird
+- **Channel-Leiste**: je Channel Status, Countdown **und Uhrzeit** des nächsten
+  stündlichen Spawns. Es gibt **keine Server-Auswahl** — gespielt wird
   auf einem Server, er steht als `CH.SERVER` in `channels.js` (aktuell
   `Tigerghost`). Der Cron holt trotzdem den ganzen DE-Cluster, ein Wechsel ist
   also diese eine Zeile.
+- **Eigene Spawns** in derselben Seitenspalte: Beschriftung (z. B.
+  *Metins Wald CH1*) plus Takt eintragen, fertig. Verstanden werden `39:30`,
+  `min39:30`, `:39`, `39` und mit Periode `39:30 /30m` bzw. `39:30 alle 15m`
+  (Vorgabe stündlich). Sie liegen in der Datenbank, gelten also für alle.
 - **Ton + Browser-Benachrichtigung** beim Ablauf, mit einstellbarer
   Vorwarnzeit und eigenen Tondateien pro Run.
 - **Ohne Zugangsdaten läuft alles lokal weiter** (localStorage) — dann sieht es
@@ -56,7 +60,8 @@ füreinander ein.
 
 `sql/schema.sql` im SQL-Editor des Supabase-Projekts ausführen. Bei einer
 **bereits angelegten** Datenbank zusätzlich `sql/2026-08-18_registration.sql`
-(fügt die Anmeldung nach; ebenfalls wiederholbar). Das Skript ist
+(Anmeldung) und `sql/2026-08-18_spawns.sql` (eigene Spawns) — beide
+wiederholbar. Das Skript ist
 wiederholbar, ein zweiter Lauf schadet nicht. Es legt vier Tabellen an
 (`chars`, `timers`, `run_types`, `channels`), setzt RLS auf „anon darf alles"
 und schaltet Realtime ein.

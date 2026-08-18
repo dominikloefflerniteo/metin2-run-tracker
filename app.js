@@ -176,6 +176,7 @@
     });
 
     renderChannels();
+    renderSpawns();
   }
 
   /* Nur die Zahlen nachziehen — kein Neuaufbau, sonst flackert es und man
@@ -195,6 +196,7 @@
 
     checkAlarms(now);
     tickChannels(now);
+    tickSpawns(now);
 
     if (stale) render();   // ein Timer ist abgelaufen -> Zelle wird "fertig"
   }
@@ -249,6 +251,7 @@
       li.appendChild(dot);
       li.appendChild(U.el('span', 'chn', r.channel));
       li.appendChild(U.el('b', 'chcd', r.secondsToNext === null ? '—' : U.fmtClock(r.secondsToNext)));
+      li.appendChild(U.el('span', 'chat', r.nextAt ? U.fmtTime(r.nextAt) : ''));
 
       if (r.tick) {
         var mm = (r.tick.minute < 10 ? '0' : '') + r.tick.minute;
@@ -272,6 +275,8 @@
       if (li) {
         var cd = li.querySelector('.chcd');
         if (cd) cd.textContent = r.secondsToNext === null ? '—' : U.fmtClock(r.secondsToNext);
+        var at = li.querySelector('.chat');
+        if (at) at.textContent = r.nextAt ? U.fmtTime(r.nextAt) : '';
         li.classList.toggle('soon', r.secondsToNext !== null && r.secondsToNext <= 120);
       }
       if (!ALARM.opts.spawn || r.secondsToNext === null) return;
@@ -283,6 +288,69 @@
       fired[slot] = true;
       ALARM.fire('_spawn', 'Spawn ' + r.channel + ' · ' + CH.SERVER,
         lead ? ('in ' + U.fmtDur(r.secondsToNext)) : 'jetzt');
+    });
+  }
+
+  /* ------------------------------------------------------ eigene Spawns */
+
+  function spawnRow(sp, now) {
+    var tick = { minute: sp.minute, second: sp.second };
+    var sec = CH.secondsToNext(tick, now, sp.period_sec);
+    return { sec: sec, at: new Date(now.getTime() + sec * 1000) };
+  }
+
+  function renderSpawns() {
+    var list = $('spawnList');
+    list.innerHTML = '';
+    var all = DB.spawns();
+    $('spawnEmpty').hidden = all.length > 0;
+
+    var now = new Date();
+    all.forEach(function (sp) {
+      var r = spawnRow(sp, now);
+
+      var li = U.el('li', 'sprow');
+      li.dataset.spawn = sp.id;
+
+      var name = U.el('div', 'spname', sp.label);
+      name.title = 'jede ' + (sp.period_sec === 3600 ? 'Stunde' : U.fmtDur(sp.period_sec)) +
+                   ' bei :' + (sp.minute < 10 ? '0' : '') + sp.minute +
+                   ':' + (sp.second < 10 ? '0' : '') + sp.second +
+                   (sp.by_user ? ' · von ' + sp.by_user : '');
+      li.appendChild(name);
+
+      var line = U.el('div', 'spline');
+      line.appendChild(U.el('b', 'chcd', U.fmtClock(r.sec)));
+      line.appendChild(U.el('span', 'chat', U.fmtTime(r.at)));
+      var del = U.el('button', 'spdel', '×');
+      del.title = 'Spawn löschen (für alle)';
+      del.dataset.del = sp.id;
+      line.appendChild(del);
+      li.appendChild(line);
+
+      list.appendChild(li);
+    });
+  }
+
+  function tickSpawns(now) {
+    var lead = Math.max(0, ALARM.opts.lead || 0);
+    var d = new Date(now);
+
+    DB.spawns().forEach(function (sp) {
+      var r = spawnRow(sp, d);
+      var li = document.querySelector('#spawnList .sprow[data-spawn="' + sp.id + '"]');
+      if (li) {
+        li.querySelector('.chcd').textContent = U.fmtClock(r.sec);
+        li.querySelector('.chat').textContent = U.fmtTime(r.at);
+        li.classList.toggle('soon', r.sec <= 120);
+      }
+      if (!ALARM.opts.spawn) return;
+      if (r.sec > Math.max(lead, 1)) return;
+
+      var slot = 'sp:' + sp.id + ':' + Math.round(r.at.getTime() / 1000);
+      if (fired[slot]) return;
+      fired[slot] = true;
+      ALARM.fire('_spawn', 'Spawn ' + sp.label, lead ? ('in ' + U.fmtDur(r.sec)) : 'jetzt');
     });
   }
 
@@ -588,6 +656,37 @@
       $('newRunLabel').value = ''; $('newRunDur').value = '';
       renderRunTable(); renderSoundRows(); render();
     };
+
+    $('spawnAdd').onsubmit = function (ev) {
+      ev.preventDefault();
+      var label = $('spLabel').value.trim();
+      var t = CH.parseSpawnTime($('spTime').value);
+      if (!label || !t) {
+        $('spHint').textContent = !label
+          ? 'Bitte eine Beschriftung eintragen.'
+          : 'Zeit nicht verstanden — z. B. 39:30, min39:30 oder 39:30 /30m';
+        $('spHint').classList.add('bad');
+        return;
+      }
+      $('spHint').classList.remove('bad');
+      $('spHint').textContent = 'Minute:Sekunde im Takt · „39:30 /30m" für halbstündlich';
+      DB.saveSpawn({
+        id: U.uuid(), label: label,
+        minute: t.minute, second: t.second, period_sec: t.period_sec,
+        sort: DB.data.spawns.length, by_user: ZGATE.user()
+      });
+      $('spLabel').value = ''; $('spTime').value = '';
+      renderSpawns();
+    };
+
+    $('spawnList').addEventListener('click', function (ev) {
+      var del = ev.target.closest('button[data-del]');
+      if (!del) return;
+      var sp = DB.data.spawns.find(function (x) { return x.id === del.dataset.del; });
+      if (sp && !confirm('"' + sp.label + '" für alle löschen?')) return;
+      DB.deleteSpawn(del.dataset.del);
+      renderSpawns();
+    });
 
     document.addEventListener('keydown', function (ev) {
       if (ev.key !== 'Escape') return;

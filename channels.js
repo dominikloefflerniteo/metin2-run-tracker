@@ -48,22 +48,56 @@
     return { minute: parseInt(m[5], 10), second: parseInt(m[6], 10) };
   };
 
-  /* Sekunden bis zum naechsten Spawn dieses Takts. */
-  CH.secondsToNext = function (tick, now) {
+  /* Sekunden bis zum naechsten Spawn dieses Takts.
+     periodSec erlaubt auch andere Abstaende als stuendlich (eigene Spawns);
+     der Takt zaehlt dann ab dem Beginn der laufenden Stunde. */
+  CH.secondsToNext = function (tick, now, periodSec) {
     if (!tick) return null;
     now = now || new Date();
-    var offsetInHour = tick.minute * 60 + tick.second;      // 0..3599
-    var nowInHour = now.getMinutes() * 60 + now.getSeconds();
-    var d = offsetInHour - nowInHour;
-    if (d <= 0) d += CH.PERIOD_SEC;
-    return d;
+    var period = (periodSec || CH.PERIOD_SEC) * 1000;
+
+    var hourStart = new Date(now.getTime());
+    hourStart.setMinutes(0, 0, 0);
+    var anchor = hourStart.getTime() + (tick.minute * 60 + tick.second) * 1000;
+
+    var d = (anchor - now.getTime()) % period;
+    if (d <= 0) d += period;          // JS-Modulo kann negativ werden
+    return d / 1000;
   };
 
   /* Zeitpunkt des naechsten Spawns als lokale Uhrzeit. */
-  CH.nextAt = function (tick, now) {
-    var sec = CH.secondsToNext(tick, now);
+  CH.nextAt = function (tick, now, periodSec) {
+    var sec = CH.secondsToNext(tick, now, periodSec);
     if (sec === null) return null;
     return new Date((now || new Date()).getTime() + sec * 1000);
+  };
+
+  /**
+   * Eingabe fuer eigene Spawns lesen. Erlaubt ist, was man im Eifer tippt:
+   *   "39:30"  "min39:30"  ":39"  "39"  "39:30 /30m"  "39:30 alle 30m"
+   * -> { minute, second, period_sec } oder null.
+   */
+  CH.parseSpawnTime = function (input) {
+    var s = String(input || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (!s) return null;
+
+    var period = CH.PERIOD_SEC;
+    var per = s.match(/(?:\/|alle)(.+)$/);
+    if (per) {
+      var p = (window.U ? U.parseDur(per[1]) : 0);
+      if (!p) return null;
+      period = p;
+      s = s.slice(0, per.index);
+    }
+
+    s = s.replace(/^(min|minute|:)/, '');
+    var m = s.match(/^(\d{1,2})(?::(\d{1,2}))?$/);
+    if (!m) return null;
+
+    var minute = parseInt(m[1], 10);
+    var second = m[2] ? parseInt(m[2], 10) : 0;
+    if (minute > 59 || second > 59) return null;
+    return { minute: minute, second: second, period_sec: period };
   };
 
   /**
