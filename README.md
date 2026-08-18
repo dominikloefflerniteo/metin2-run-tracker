@@ -18,6 +18,11 @@ Balken statt einer stillen leeren Seite.
 
 - **Charaktere**, gruppiert nach Spieler. Cooldowns sind charaktergebunden
   (6/7 und Bio sind es im Spiel ohnehin).
+- **Notizen** je Charakter, direkt in der Tabelle beschreibbar (speichert beim
+  Verlassen des Feldes), und ein **Account** je Charakter.
+- **Gruppierung umschaltbar**: *nach Spieler* (= wer gerade eingeloggt ist,
+  ausgeloggte Charaktere landen unter **Nicht eingeloggt** am Ende) oder
+  *nach Account*.
 - **Login je Charakter.** Geteilte Charaktere wechseln oft den Spieler, deshalb
   hat jede Zeile einen *Login*-Knopf: er markiert dich als eingeloggt und zeigt
   allen, wer gerade draufsitzt (mit Uhrzeit). *Logout* gibt den Charakter wieder
@@ -69,7 +74,8 @@ füreinander ein.
 `sql/schema.sql` im SQL-Editor des Supabase-Projekts ausführen. Bei einer
 **bereits angelegten** Datenbank zusätzlich `sql/2026-08-18_registration.sql`
 (Anmeldung), `sql/2026-08-18_spawns.sql` (eigene Spawns) und
-`sql/2026-08-18_login.sql` (Login je Charakter) — alle wiederholbar. Das Skript ist
+`sql/2026-08-18_login.sql` (Login je Charakter) und
+`sql/2026-08-18_account.sql` (Account) — alle wiederholbar. Das Skript ist
 wiederholbar, ein zweiter Lauf schadet nicht. Es legt vier Tabellen an
 (`chars`, `timers`, `run_types`, `channels`), setzt RLS auf „anon darf alles"
 und schaltet Realtime ein.
@@ -141,6 +147,13 @@ eigenen Takt.
 
 Alle Werte sind in den Einstellungen änderbar und gelten dann für alle; neue
 Runs lassen sich dort ebenfalls anlegen.
+
+## Version
+
+Die Version steht **nur** in `version.js` und erscheint oben links neben dem
+Namen (Tooltip: Datum + letzte Änderung). Bei **jeder** Änderung wird sie dort
+hochgezählt und derselbe Eintrag oben in `CHANGELOG.md` ergänzt — der Smoketest
+vergleicht beide und schlägt fehl, wenn sie auseinanderlaufen.
 
 ## Test
 

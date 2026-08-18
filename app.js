@@ -8,11 +8,14 @@
   var PREF_KEY = 'm2rt.prefs.v1';
   var prefs = Object.assign({
     onlyMine: false,
-    groupOwner: true,
+    groupBy: 'player',        // 'player' = wer eingeloggt ist, 'account'
     filter: ''
   }, U.store.get(PREF_KEY, {}));
 
   function savePrefs() { U.store.set(PREF_KEY, prefs); }
+
+  var FREE = 'Nicht eingeloggt';
+  var NO_ACCOUNT = 'ohne Account';
 
   /* Was schon geklingelt hat — sonst laeutet es bei jedem Tick erneut. */
   var fired = {};
@@ -21,6 +24,14 @@
   var dlgTimer = null;    // { charId, runKey }
 
   /* ==================================================== Kopfzeile / Setup */
+
+  function paintVersion() {
+    var v = window.APP_VERSION;
+    if (!v) return;
+    var el = $('appVersion');
+    el.textContent = 'v' + v.number;
+    el.title = 'v' + v.number + ' · ' + v.date + (v.note ? ' — ' + v.note : '');
+  }
 
   function paintWho() {
     $('btnWho').textContent = ZGATE.user() || 'Name?';
@@ -43,16 +54,27 @@
         return (c.name + ' ' + (c.owner || '') + ' ' + (c.note || '')).toLowerCase().indexOf(q) !== -1;
       })
       .sort(function (a, b) {
-        var o = (a.owner || '').localeCompare(b.owner || '');
-        if (prefs.groupOwner && o) return o;
+        var g = groupKey(a).localeCompare(groupKey(b));
+        // "Nicht eingeloggt" ans Ende, sonst alphabetisch nach Gruppe.
+        var la = groupKey(a) === FREE, lb = groupKey(b) === FREE;
+        if (la !== lb) return la ? 1 : -1;
+        if (g) return g;
         return (a.sort || 0) - (b.sort || 0) || a.name.localeCompare(b.name);
       });
+  }
+
+  /* Ueberschrift, unter der ein Charakter einsortiert wird.
+     Nach Spieler heisst: wer gerade eingeloggt ist — nicht, wem er "gehoert".
+     Genau das will man beim Draufschauen wissen. */
+  function groupKey(c) {
+    if (prefs.groupBy === 'account') return (c.account || '').trim() || NO_ACCOUNT;
+    return (c.logged_in_by || '').trim() || FREE;
   }
 
   function buildHead(runs) {
     var tr = U.el('tr');
     tr.appendChild(U.el('th', 'th-char', 'Charakter'));
-    if (!prefs.groupOwner) tr.appendChild(U.el('th', 'th-owner', 'Spieler'));
+    tr.appendChild(U.el('th', 'th-note', 'Notizen'));
     runs.forEach(function (r) {
       var th = U.el('th', 'th-run');
       var box = U.el('span', 'run-head');
@@ -198,11 +220,11 @@
 
     var lastOwner = null;
     list.forEach(function (c) {
-      if (prefs.groupOwner && (c.owner || '') !== lastOwner) {
-        lastOwner = c.owner || '';
-        var gr = U.el('tr', 'grouprow');
-        var gd = U.el('td', null, lastOwner || 'ohne Spieler');
-        gd.colSpan = runs.length + 2;
+      if (groupKey(c) !== lastOwner) {
+        lastOwner = groupKey(c);
+        var gr = U.el('tr', 'grouprow' + (lastOwner === FREE ? ' free' : ''));
+        var gd = U.el('td', null, lastOwner);
+        gd.colSpan = runs.length + 3;
         gr.appendChild(gd);
         body.appendChild(gr);
       }
@@ -215,10 +237,21 @@
       line.appendChild(U.el('b', null, c.name));
       loginControls(c, line);
       name.appendChild(line);
-      if (c.note) name.appendChild(U.el('span', 'note', c.note));
+      if (prefs.groupBy === 'account' && c.logged_in_by) {
+        name.appendChild(U.el('span', 'note', 'eingeloggt: ' + c.logged_in_by));
+      } else if (prefs.groupBy === 'player' && c.account) {
+        name.appendChild(U.el('span', 'note', 'Account ' + c.account));
+      }
       tr.appendChild(name);
 
-      if (!prefs.groupOwner) tr.appendChild(U.el('td', 'td-owner', c.owner || '—'));
+      var noteTd = U.el('td', 'td-note');
+      var noteIn = U.el('input', 'noteinput');
+      noteIn.value = c.note || '';
+      noteIn.placeholder = 'Notiz…';
+      noteIn.maxLength = 200;
+      noteIn.dataset.note = c.id;
+      noteTd.appendChild(noteIn);
+      tr.appendChild(noteTd);
 
       runs.forEach(function (r) { tr.appendChild(cellFor(c, r)); });
 
@@ -459,11 +492,12 @@
     var c = id ? DB.data.chars.find(function (x) { return x.id === id; }) : null;
     dlgChar = c || {
       id: U.uuid(), name: '', server: CH.SERVER,
-      owner: ZGATE.user(), note: '', sort: DB.data.chars.length
+      owner: ZGATE.user(), note: '', account: '', sort: DB.data.chars.length
     };
     $('cdTitle').textContent = c ? 'Charakter bearbeiten' : 'Neuer Charakter';
     $('cdName').value = dlgChar.name;
     $('cdOwner').value = dlgChar.owner || '';
+    $('cdAccount').value = dlgChar.account || '';
     $('cdNote').value = dlgChar.note || '';
     $('cdDelete').hidden = !c;
     $('charDlg').hidden = false;
@@ -601,8 +635,21 @@
     $('filter').oninput = function () { prefs.filter = this.value; savePrefs(); render(); };
     $('onlyMine').checked = prefs.onlyMine;
     $('onlyMine').onchange = function () { prefs.onlyMine = this.checked; savePrefs(); render(); };
-    $('groupOwner').checked = prefs.groupOwner;
-    $('groupOwner').onchange = function () { prefs.groupOwner = this.checked; savePrefs(); render(); };
+    paintGroupBy();
+    $('groupBy').addEventListener('click', function (ev) {
+      var b = ev.target.closest('button[data-group]');
+      if (!b) return;
+      prefs.groupBy = b.dataset.group;
+      savePrefs(); paintGroupBy(); render();
+    });
+
+    /* Notiz: beim Verlassen des Feldes bzw. mit Enter speichern — nicht bei
+       jedem Tastendruck, sonst schreibt man den anderen die Zeile zu. */
+    $('gridBody').addEventListener('change', function (ev) {
+      var inp = ev.target.closest('input[data-note]');
+      if (!inp) return;
+      DB.setNote(inp.dataset.note, inp.value.trim());
+    });
 
     $('btnAddChar').onclick = function () { openCharDialog(null); };
     $('btnWho').onclick = function () { ZGATE.ask(); };
@@ -671,6 +718,7 @@
       dlgChar.name = name;
       dlgChar.server = dlgChar.server || CH.SERVER;
       dlgChar.owner = $('cdOwner').value.trim();
+      dlgChar.account = $('cdAccount').value.trim();
       dlgChar.note = $('cdNote').value.trim();
       DB.saveChar(dlgChar);
       $('charDlg').hidden = true;
@@ -765,6 +813,12 @@
     });
   }
 
+  function paintGroupBy() {
+    [].forEach.call($('groupBy').querySelectorAll('button[data-group]'), function (b) {
+      b.classList.toggle('on', b.dataset.group === prefs.groupBy);
+    });
+  }
+
   function paintSoundBtn() {
     $('btnSound').textContent = ALARM.opts.sound ? '🔊' : '🔇';
     $('btnSound').classList.toggle('ghost', !ALARM.opts.sound);
@@ -780,6 +834,7 @@
              'Die Seite läuft solange nur lokal — Änderungen erreichen niemanden sonst.');
     }
     wire();
+    paintVersion();
     paintWho();
     paintSoundBtn();
     DB.onStatus(paintStatus);

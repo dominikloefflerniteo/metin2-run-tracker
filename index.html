@@ -11,7 +11,7 @@
 <body class="locked">
 
 <header>
-  <div class="brand">Run<span>-Tracker</span></div>
+  <div class="brand">Run<span>-Tracker</span> <em id="appVersion"></em></div>
 
   <div class="grow"></div>
 
@@ -31,7 +31,10 @@
     <button class="btn primary" id="btnAddChar">+ Charakter</button>
     <input class="txt" id="filter" placeholder="filtern (Char oder Spieler)…" />
     <label class="chk"><input type="checkbox" id="onlyMine" /> nur meine</label>
-    <label class="chk"><input type="checkbox" id="groupOwner" checked /> nach Spieler gruppieren</label>
+    <div class="seg" id="groupBy" role="group" aria-label="Gruppierung">
+      <button class="seg-b" data-group="player">nach Spieler</button>
+      <button class="seg-b" data-group="account">nach Account</button>
+    </div>
     <div class="grow"></div>
     <span class="hint">Klick auf <b>starten</b> setzt den Cooldown · Klick auf einen laufenden Timer öffnet ihn</span>
   </div>
@@ -175,6 +178,8 @@
       <input class="txt" id="cdName" maxlength="40" />
       <label class="fl" for="cdOwner">Spieler</label>
       <input class="txt" id="cdOwner" maxlength="40" />
+      <label class="fl" for="cdAccount">Account</label>
+      <input class="txt" id="cdAccount" maxlength="40" placeholder="z. B. jogoe2" />
       <label class="fl" for="cdNote">Notiz</label>
       <input class="txt" id="cdNote" maxlength="80" placeholder="z. B. Klasse, Level" />
       <div class="row">
@@ -186,6 +191,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="version.js"></script>
 <script src="gate.js"></script>
 <script src="util.js"></script>
 <script src="db.js"></script>

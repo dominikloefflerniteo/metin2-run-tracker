@@ -36,7 +36,7 @@ async function main() {
   window.localStorage.setItem('m2rt.gate.v1', JSON.stringify({ ok: true, user: 'Jogoe' }));
 
   // Kein Netz im Test: kein window.supabase -> DB bleibt lokal.
-  for (const f of ['gate.js', 'util.js', 'db.js', 'channels.js', 'alarm.js', 'app.js']) {
+  for (const f of ['version.js', 'gate.js', 'util.js', 'db.js', 'channels.js', 'alarm.js', 'app.js']) {
     window.eval(fs.readFileSync(path.join(__dirname, f), 'utf8'));
   }
 
@@ -50,6 +50,16 @@ async function main() {
   ok(DB.runTypes().length === 6, '6 Runs voreingestellt: ' + DB.runTypes().map(r => r.label).join(', '));
   ok($('chBlock').hidden === !CH.SHOW_CHANNELS, 'g-status-Channels folgen dem Schalter CH.SHOW_CHANNELS (' + CH.SHOW_CHANNELS + ')');
   ok(!$('emptyHint').hidden, 'Hinweis "noch kein Charakter" ist sichtbar');
+
+  console.log('\n[Version]');
+  const v = window.APP_VERSION;
+  ok(!!v && /^\d+\.\d+\.\d+$/.test(v.number), 'version.js nennt eine Version: ' + (v && v.number));
+  ok($('appVersion').textContent === 'v' + v.number, 'steht oben links: ' + $('appVersion').textContent);
+  const firstEntry = fs.readFileSync(path.join(__dirname, 'CHANGELOG.md'), 'utf8')
+    .split('\n').find((l) => l.startsWith('## '));
+  ok(!!firstEntry && firstEntry.indexOf('## ' + v.number + ' ') === 0,
+     'CHANGELOG.md beginnt mit derselben Version ("' + firstEntry + '")');
+  ok(firstEntry.indexOf(v.date) !== -1, 'und mit demselben Datum');
 
   console.log('\n[Dauern lesen und schreiben]');
   ok(U.parseDur('2h') === 7200, '2h');
@@ -96,6 +106,46 @@ async function main() {
   click($('tdClear'));
   ok(DB.data.timers.length === 0, 'Timer geloescht');
   ok(doc.querySelectorAll('#gridBody .chip.ready').length === 6, 'alle Zellen wieder "bereit"');
+
+  console.log('\n[Notizen, Account, Gruppierung]');
+  const groups = () => [...doc.querySelectorAll('#gridBody .grouprow td')].map((td) => td.textContent);
+
+  // Zweiter Charakter, damit es etwas zu gruppieren gibt.
+  click($('btnAddChar'));
+  $('cdName').value = 'Zweitchar';
+  $('cdOwner').value = 'Dejan';
+  $('cdAccount').value = 'jogoe2';
+  click($('cdSave'));
+  ok(DB.data.chars.length === 2, 'zweiter Charakter angelegt');
+  ok(DB.data.chars.find((c) => c.name === 'Zweitchar').account === 'jogoe2', 'Account gespeichert');
+
+  ok(groups().indexOf('Nicht eingeloggt') !== -1,
+     'ausgeloggte Charaktere stehen unter "Nicht eingeloggt": ' + JSON.stringify(groups()));
+
+  DB.setLogin(DB.data.chars[0].id, 'Jogoe');
+  ok(groups()[0] === 'Jogoe', 'eingeloggt -> eigene Gruppe zuoberst: ' + JSON.stringify(groups()));
+  ok(groups()[groups().length - 1] === 'Nicht eingeloggt', '"Nicht eingeloggt" bleibt am Ende');
+
+  // Umschalten auf Account
+  click(doc.querySelector('#groupBy button[data-group="account"]'));
+  ok(groups().indexOf('jogoe2') !== -1, 'nach Account gruppiert: ' + JSON.stringify(groups()));
+  ok(groups().indexOf('ohne Account') !== -1, 'Charaktere ohne Account bekommen eine eigene Gruppe');
+  ok(doc.querySelector('#groupBy button[data-group="account"]').classList.contains('on'),
+     'der Umschalter zeigt die aktive Wahl');
+  click(doc.querySelector('#groupBy button[data-group="player"]'));
+
+  // Notizen direkt in der Tabelle
+  const noteIn = doc.querySelector('#gridBody input[data-note]');
+  ok(!!noteIn, 'jede Zeile hat ein Notizfeld');
+  noteIn.value = 'braucht noch Bio';
+  noteIn.dispatchEvent(new window.Event('change', { bubbles: true }));
+  ok(DB.data.chars.find((c) => c.id === noteIn.dataset.note).note === 'braucht noch Bio',
+     'Notiz gespeichert');
+  ok(DB.data.chars.find((c) => c.id === noteIn.dataset.note).name !== undefined,
+     'und der Charakter ist sonst unangetastet');
+
+  DB.setLogin(DB.data.chars[0].id, null);
+  DB.deleteChar(DB.data.chars.find((c) => c.name === 'Zweitchar').id);
 
   console.log('\n[Login / wer sitzt drauf]');
   const charRow = () => doc.querySelector('#gridBody tr[data-char]');

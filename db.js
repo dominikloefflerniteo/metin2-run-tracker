@@ -209,6 +209,10 @@
   /* Ein- und Ausloggen. user = Name oder null (= Charakter ist wieder frei).
      Nur ein Teil-Upsert, damit gleichzeitige Aenderungen an Name/Notiz nicht
      ueberschrieben werden. */
+  DB.setNote = function (charId, note) {
+    return patch('chars', charId, { note: String(note || '') });
+  };
+
   DB.setLogin = function (charId, user) {
     var fields = {
       logged_in_by: user || null,
