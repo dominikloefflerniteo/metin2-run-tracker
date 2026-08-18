@@ -17,8 +17,7 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body.locked > header,
-body.locked > main,
-body.locked > .chbar { filter: blur(6px); pointer-events: none; user-select: none; }
+body.locked > main { filter: blur(6px); pointer-events: none; user-select: none; }
 
 body {
   margin: 0;
@@ -94,59 +93,76 @@ header {
   color: var(--danger); font-size: 12.5px; line-height: 1.5;
 }
 
-/* -------------------------------------------------------------- Channels */
-.chbar { padding: 12px 14px 0; }
-.chbar-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 7px; }
-.chbar-meta { font-size: 11px; color: var(--fg-dim); }
-.chgrid { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 8px; }
-@media (max-width: 860px) { .chgrid { grid-template-columns: repeat(3, 1fr); } }
-
-.chcard {
+/* ------------------------------------------- Channels (schmale Spalte) */
+.side {
+  align-self: start; position: sticky; top: 61px;
   background: var(--bg-2); border: 1px solid var(--border); border-radius: 9px;
   padding: 8px 10px 9px;
 }
-.chcard.off { opacity: .5; }
-.chcard.soon { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(242,201,76,.25) inset; }
-.chtop { display: flex; align-items: center; justify-content: space-between; }
-.chname { font-weight: 700; font-size: 12px; color: var(--fg-dim); letter-spacing: .05em; }
-.chcd { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.25; }
-.chcard.soon .chcd { color: var(--accent); }
-.chsub { font-size: 10.5px; color: var(--fg-dim); }
+.side-head {
+  font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--accent); font-weight: 800; margin-bottom: 5px;
+}
+.side-head .dim { color: var(--fg-dim); font-weight: 600; letter-spacing: 0; text-transform: none; }
+.side-foot { font-size: 9.5px; color: var(--fg-dim); margin-top: 6px; }
+
+.chlist { list-style: none; margin: 0; padding: 0; }
+.chrow {
+  display: grid; grid-template-columns: 9px 30px 1fr;
+  align-items: center; gap: 6px;
+  padding: 2px 0; font-size: 12px;
+}
+.chrow.off { opacity: .45; }
+.chrow .chn { color: var(--fg-dim); font-size: 10.5px; letter-spacing: .04em; }
+.chrow .chcd { font-variant-numeric: tabular-nums; text-align: right; font-weight: 700; }
+.chrow.soon .chcd { color: var(--accent); }
 
 /* --------------------------------------------------------------- Tabelle */
 main { padding: 14px; }
 .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 
-.tablewrap { overflow-x: auto; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) 170px; gap: 14px; align-items: start; }
+@media (max-width: 760px) { .cols { grid-template-columns: 1fr; } .side { position: static; } }
+
+/* KEIN overflow hier: ein Scroll-Container waere der Bezugspunkt fuer den
+   klebenden Tabellenkopf, der sich dann um 47px ueber die erste Zeile schoebe.
+   So klebt er an der Seite und sitzt sauber unter der Kopfleiste. */
+.tablewrap { min-width: 0; }
 table#grid { border-collapse: separate; border-spacing: 0; width: 100%; }
 #grid th, #grid td {
   padding: 7px 9px; text-align: left; border-bottom: 1px solid var(--border);
-  vertical-align: middle;
+  vertical-align: middle; line-height: 1.35;
 }
+#grid tbody tr:not(.grouprow) td { height: 40px; }
+#grid tbody tr:not(.grouprow) td:has(.regi) { height: 58px; }
 #grid thead th {
   position: sticky; top: 47px; background: var(--bg);
   font-size: 11px; color: var(--fg-dim); font-weight: 700;
   border-bottom: 2px solid var(--border); z-index: 10;
+  vertical-align: bottom;
 }
 .run-head { display: flex; align-items: center; gap: 6px; color: var(--fg); font-size: 12.5px; }
 .run-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
 .run-sub { display: block; font-weight: 500; font-size: 10px; color: var(--fg-dim); margin-top: 1px; }
-.th-char { min-width: 170px; }
+.th-char { width: 99%; min-width: 170px; }   /* schluckt den Rest, damit die
+                                                 Run-Spalten schmal bleiben */
+.th-run { width: 120px; }
 .th-act { width: 34px; }
 
 #grid tbody tr:hover td { background: rgba(255,255,255,.02); }
 .grouprow td {
   background: var(--bg-2); color: var(--accent);
   font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
-  padding: 5px 9px !important;
+  padding: 4px 9px !important; height: auto;
 }
+.grouprow + tr td { border-top: none; }
 .td-char b { font-size: 13px; }
 .td-char .note { display: block; font-size: 10.5px; color: var(--fg-dim); }
 .td-owner { color: var(--fg-dim); font-size: 12px; }
 .td-act { text-align: right; }
 
 .chip {
-  font: inherit; cursor: pointer; width: 100%; min-width: 92px;
+  font: inherit; cursor: pointer; width: 100%; min-width: 82px; max-width: 150px;
   border: 1px solid var(--border); border-radius: 7px;
   padding: 5px 8px; text-align: left;
   background: var(--bg-2); color: var(--fg);
@@ -160,6 +176,19 @@ table#grid { border-collapse: separate; border-spacing: 0; width: 100%; }
 .chip.running { background: var(--bg-3); }
 .chip.running.soon { border-color: var(--accent); }
 .chip.running.soon b { color: var(--accent); }
+
+.regi {
+  font: inherit; font-size: 10.5px; cursor: pointer;
+  margin-top: 3px; width: 100%; max-width: 150px;
+  padding: 2px 6px; border-radius: 5px; text-align: left;
+  background: transparent; color: var(--fg-dim);
+  border: 1px dashed var(--border);
+}
+.regi:hover { color: var(--fg); border-color: var(--teal); }
+.regi.set {
+  border-style: solid; border-color: rgba(39,174,96,.5);
+  color: var(--safe); background: rgba(39,174,96,.08);
+}
 
 .empty { color: var(--fg-dim); font-size: 12.5px; padding: 18px 4px; }
 

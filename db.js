@@ -25,7 +25,7 @@
     { key: 'hydra',  label: 'Hydra',     seconds: 20 * 60,   from_start: true,  color: '#e0574f', sort: 10, enabled: true },
     { key: 'nemere', label: 'Nemere',    seconds: 4 * 3600,  from_start: false, color: '#6aa9ff', sort: 20, enabled: true },
     { key: 'jotun',  label: 'Jotun',     seconds: 2 * 3600,  from_start: false, color: '#7ad0c8', sort: 30, enabled: true },
-    { key: 'meley',  label: 'Meley',     seconds: 3 * 3600,  from_start: false, color: '#c9a227', sort: 40, enabled: true },
+    { key: 'meley',  label: 'Meley',     seconds: 3 * 3600,  from_start: false, color: '#c9a227', sort: 40, enabled: true, has_registration: true },
     { key: 'sechs7', label: '6/7 Bonus', seconds: 24 * 3600, from_start: false, color: '#9a7fd1', sort: 50, enabled: true },
     { key: 'bio',    label: 'Bio',       seconds: 24 * 3600, from_start: false, color: '#6fbf6f', sort: 60, enabled: true }
   ];
@@ -209,12 +209,47 @@
       started_at: new Date(startedAt).toISOString(),
       ends_at: new Date(endsAt).toISOString(),
       by_user: user || '',
+      // Mit dem Lauf ist die Anmeldung verbraucht — sonst bliebe eine alte
+      // Uhrzeit stehen, die nichts mehr bedeutet.
+      registered_at: null,
       updated_at: new Date().toISOString()
     };
     return push('timers', row, 'char_id,run_key', ['char_id', 'run_key']);
   };
 
+  /* Anmeldung ("Regi") — haengt an derselben Zeile, unabhaengig vom Cooldown.
+     ts = Zeitstempel oder null zum Loeschen. */
+  DB.setRegistration = function (charId, runKey, ts, user) {
+    var existing = DB.data.timers.find(function (t) {
+      return t.char_id === charId && t.run_key === runKey;
+    });
+    if (!ts && !existing) return Promise.resolve(true);
+
+    var row = {
+      id: existing ? existing.id : U.uuid(),
+      char_id: charId,
+      run_key: runKey,
+      registered_at: ts ? new Date(ts).toISOString() : null,
+      by_user: user || (existing ? existing.by_user : ''),
+      updated_at: new Date().toISOString()
+    };
+    // Eine neue Zeile traegt noch keinen Cooldown.
+    if (!existing) { row.started_at = null; row.ends_at = null; }
+    return push('timers', row, 'char_id,run_key', ['char_id', 'run_key']);
+  };
+
   DB.clearTimer = function (charId, runKey) {
+    // Steht noch eine Anmeldung in der Zeile, bleibt die Zeile stehen und nur
+    // der Cooldown wird geleert.
+    var existing = DB.data.timers.find(function (t) {
+      return t.char_id === charId && t.run_key === runKey;
+    });
+    if (existing && existing.registered_at) {
+      return push('timers', {
+        id: existing.id, char_id: charId, run_key: runKey,
+        started_at: null, ends_at: null, updated_at: new Date().toISOString()
+      }, 'char_id,run_key', ['char_id', 'run_key']);
+    }
     localDelete('timers', { char_id: charId, run_key: runKey });
     if (!client) return Promise.resolve(true);
     return client.from('timers').delete().eq('char_id', charId).eq('run_key', runKey)
@@ -248,5 +283,12 @@
     return DB.data.timers.find(function (t) {
       return t.char_id === charId && t.run_key === runKey;
     }) || null;
+  };
+
+  /* Laeuft gerade ein Cooldown? (Eine Zeile kann auch nur eine Anmeldung sein.) */
+  DB.runningUntil = function (t) {
+    if (!t || !t.ends_at) return 0;
+    var end = Date.parse(t.ends_at);
+    return end > Date.now() ? end : 0;
   };
 })();

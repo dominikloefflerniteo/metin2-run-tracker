@@ -16,16 +16,24 @@ Balken statt einer stillen leeren Seite.
 
 ## Was es kann
 
-- **Charaktere** pro Server, gruppiert nach Spieler. Cooldowns sind
-  charaktergebunden (6/7 und Bio sind es im Spiel ohnehin).
-- **Ein Klick = Cooldown läuft.** Bei den meisten Runs startet er beim
-  Abschluss („fertig"), bei Hydra ab dem Betreten („Start") — pro Run
-  einstellbar.
+- **Charaktere**, gruppiert nach Spieler. Cooldowns sind charaktergebunden
+  (6/7 und Bio sind es im Spiel ohnehin).
+- **Ein Klick = Cooldown läuft.** Der Knopf heißt überall *starten*; ob der
+  Cooldown im Spiel ab dem Betreten oder ab dem Abschluss zählt, steht in der
+  Spaltenüberschrift (`ab Start`) und ist pro Run einstellbar.
 - **Countdowns rechnet jeder Browser selbst** aus `started_at` + `ends_at`.
   Übertragen wird nur, *wenn* jemand etwas ändert — deshalb braucht es kein
   Polling im Sekundentakt.
+- **Anmeldung („Regi")** bei Runs, die eine haben — vorerst nur Meley,
+  in den Einstellungen pro Run umschaltbar. Der Knopf *Regi gemacht* schreibt
+  die Uhrzeit in die Zelle; ein Klick darauf setzt sie zurück. Mit dem Start
+  des Cooldowns gilt die Anmeldung als verbraucht und wird geleert — sonst
+  bliebe eine Uhrzeit stehen, die nichts mehr bedeutet.
 - **Channel-Leiste**: je Channel Status, Neustart-Minute und der Countdown zum
-  nächsten stündlichen Spawn.
+  nächsten stündlichen Spawn. Es gibt **keine Server-Auswahl** — gespielt wird
+  auf einem Server, er steht als `CH.SERVER` in `channels.js` (aktuell
+  `Tigerghost`). Der Cron holt trotzdem den ganzen DE-Cluster, ein Wechsel ist
+  also diese eine Zeile.
 - **Ton + Browser-Benachrichtigung** beim Ablauf, mit einstellbarer
   Vorwarnzeit und eigenen Tondateien pro Run.
 - **Ohne Zugangsdaten läuft alles lokal weiter** (localStorage) — dann sieht es
@@ -46,7 +54,9 @@ füreinander ein.
 
 ### 1. Datenbank (einmalig)
 
-`sql/schema.sql` im SQL-Editor des Supabase-Projekts ausführen. Das Skript ist
+`sql/schema.sql` im SQL-Editor des Supabase-Projekts ausführen. Bei einer
+**bereits angelegten** Datenbank zusätzlich `sql/2026-08-18_registration.sql`
+(fügt die Anmeldung nach; ebenfalls wiederholbar). Das Skript ist
 wiederholbar, ein zweiter Lauf schadet nicht. Es legt vier Tabellen an
 (`chars`, `timers`, `run_types`, `channels`), setzt RLS auf „anon darf alles"
 und schaltet Realtime ein.
@@ -112,7 +122,7 @@ eigenen Takt.
 | Hydra | 20 min | Betreten |
 | Nemere | 4 h | Abschluss |
 | Jotun | 2 h | Abschluss |
-| Meley | 3 h | Abschluss |
+| Meley | 3 h | Abschluss (mit Anmeldung) |
 | 6/7 Bonus | 24 h | Abgabe |
 | Bio | 24 h | Abgabe |
 

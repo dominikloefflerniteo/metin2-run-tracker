@@ -13,9 +13,6 @@
 <header>
   <div class="brand">Run<span>-Tracker</span></div>
 
-  <label class="hl" for="serverPick">Server</label>
-  <select class="txt" id="serverPick"></select>
-
   <div class="grow"></div>
 
   <div class="status" id="statusWrap" title="Verbindung zur gemeinsamen Datenbank">
@@ -29,14 +26,6 @@
 
 <div class="boot-error" id="bootError" hidden></div>
 
-<section class="chbar" id="chbar">
-  <div class="chbar-head">
-    <span class="label">Channels <span class="dim" id="chServer"></span></span>
-    <span class="chbar-meta" id="chMeta">—</span>
-  </div>
-  <div class="chgrid" id="chGrid"></div>
-</section>
-
 <main>
   <div class="toolbar">
     <button class="btn primary" id="btnAddChar">+ Charakter</button>
@@ -44,17 +33,25 @@
     <label class="chk"><input type="checkbox" id="onlyMine" /> nur meine</label>
     <label class="chk"><input type="checkbox" id="groupOwner" checked /> nach Spieler gruppieren</label>
     <div class="grow"></div>
-    <span class="hint">Klick auf <b>fertig</b> startet den Cooldown · Klick auf einen laufenden Timer öffnet ihn</span>
+    <span class="hint">Klick auf <b>starten</b> setzt den Cooldown · Klick auf einen laufenden Timer öffnet ihn</span>
   </div>
 
-  <div class="tablewrap">
-    <table id="grid">
-      <thead id="gridHead"></thead>
-      <tbody id="gridBody"></tbody>
-    </table>
-    <p class="empty" id="emptyHint" hidden>
-      Noch kein Charakter auf diesem Server. Oben links <b>+ Charakter</b>.
-    </p>
+  <div class="cols">
+    <div class="tablewrap">
+      <table id="grid">
+        <thead id="gridHead"></thead>
+        <tbody id="gridBody"></tbody>
+      </table>
+      <p class="empty" id="emptyHint" hidden>
+        Noch kein Charakter. Oben links <b>+ Charakter</b>.
+      </p>
+    </div>
+
+    <aside class="side" id="chbar">
+      <div class="side-head">Spawns <span class="dim" id="chServer"></span></div>
+      <ul class="chlist" id="chGrid"></ul>
+      <div class="side-foot" id="chMeta">—</div>
+    </aside>
   </div>
 </main>
 
@@ -134,6 +131,10 @@
     </div>
     <div class="modal-body">
       <p class="sub" id="tdInfo"></p>
+      <div class="row" id="tdRegiRow" hidden>
+        <span class="sub" id="tdRegi"></span>
+        <button class="btn" id="tdRegiSet">Regi gemacht</button>
+      </div>
       <div class="row">
         <label class="fl inline" for="tdRemain">Restzeit</label>
         <input class="txt small" id="tdRemain" placeholder="1h20m" />
@@ -157,8 +158,6 @@
     <div class="modal-body">
       <label class="fl" for="cdName">Name</label>
       <input class="txt" id="cdName" maxlength="40" />
-      <label class="fl" for="cdServer">Server</label>
-      <select class="txt" id="cdServer"></select>
       <label class="fl" for="cdOwner">Spieler</label>
       <input class="txt" id="cdOwner" maxlength="40" />
       <label class="fl" for="cdNote">Notiz</label>

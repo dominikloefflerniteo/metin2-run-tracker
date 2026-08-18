@@ -7,7 +7,6 @@
 
   var PREF_KEY = 'm2rt.prefs.v1';
   var prefs = Object.assign({
-    server: 'Tigerghost',
     onlyMine: false,
     groupOwner: true,
     filter: ''
@@ -22,16 +21,6 @@
   var dlgTimer = null;    // { charId, runKey }
 
   /* ==================================================== Kopfzeile / Setup */
-
-  function fillServerPicker(sel, value) {
-    sel.innerHTML = '';
-    CH.SERVERS.forEach(function (s) {
-      var o = document.createElement('option');
-      o.value = s; o.textContent = s;
-      if (s === value) o.selected = true;
-      sel.appendChild(o);
-    });
-  }
 
   function paintWho() {
     $('btnWho').textContent = ZGATE.user() || 'Name?';
@@ -48,7 +37,6 @@
     var q = prefs.filter.trim().toLowerCase();
     var me = ZGATE.user().toLowerCase();
     return DB.data.chars
-      .filter(function (c) { return c.server === prefs.server; })
       .filter(function (c) { return !prefs.onlyMine || (c.owner || '').toLowerCase() === me; })
       .filter(function (c) {
         if (!q) return true;
@@ -90,7 +78,7 @@
     btn.dataset.char = c.id;
     btn.dataset.run = r.key;
 
-    if (t) {
+    if (t && t.ends_at) {
       var end = Date.parse(t.ends_at);
       var left = (end - Date.now()) / 1000;
       if (left > 0) {
@@ -102,6 +90,7 @@
         btn.title = (t.by_user ? t.by_user + ' · ' : '') +
                     'gestartet ' + U.fmtTime(t.started_at) + ' — klicken zum Ändern';
         td.appendChild(btn);
+        addRegi(td, c, r, t);
         return td;
       }
     }
@@ -109,12 +98,39 @@
     btn.className = 'chip ready';
     btn.style.background = (r.color || '#3aaac1') + '22';
     btn.style.borderColor = r.color || '';
-    btn.innerHTML = '<b>' + (r.from_start ? 'Start' : 'fertig') + '</b>';
-    btn.title = r.from_start
-      ? 'Lauf betreten — Cooldown läuft ab jetzt (' + U.fmtDur(r.seconds) + ')'
-      : 'Lauf abgeschlossen — Cooldown läuft ab jetzt (' + U.fmtDur(r.seconds) + ')';
+    // Ein Wort fuer alle Runs: der Knopf startet immer denselben Cooldown.
+    // Ob der im Spiel beim Betreten oder beim Abschluss beginnt, steht in der
+    // Spaltenueberschrift und im Tooltip — nicht auf dem Knopf.
+    btn.innerHTML = '<b>starten</b>';
+    btn.title = (r.from_start
+      ? 'Lauf betreten — '
+      : 'Lauf abgeschlossen bzw. abgegeben — ') +
+      'Cooldown läuft ab jetzt (' + U.fmtDur(r.seconds) + ')';
     td.appendChild(btn);
+    addRegi(td, c, r, t);
     return td;
+  }
+
+  /* Anmeldung: nur bei Runs, die eine haben (Meley). Ist sie gesetzt, steht
+     dort die Uhrzeit statt des Knopfs — ein Klick darauf setzt sie zurueck. */
+  function addRegi(td, c, r, t) {
+    if (!r.has_registration) return;
+
+    var b = U.el('button', 'regi');
+    b.dataset.char = c.id;
+    b.dataset.run = r.key;
+    b.dataset.regi = '1';
+
+    if (t && t.registered_at) {
+      b.classList.add('set');
+      b.textContent = '✓ Regi ' + U.fmtTime(t.registered_at);
+      b.title = 'angemeldet am ' + new Date(t.registered_at).toLocaleString('de-AT') +
+                ' — klicken zum Zurücksetzen';
+    } else {
+      b.textContent = 'Regi gemacht';
+      b.title = 'Anmeldung eintragen (Uhrzeit von jetzt)';
+    }
+    td.appendChild(b);
   }
 
   function render() {
@@ -192,7 +208,7 @@
 
     DB.data.timers.forEach(function (t) {
       var c = DB.data.chars.find(function (x) { return x.id === t.char_id; });
-      if (!c || c.server !== prefs.server) return;
+      if (!c) return;
       var end = Date.parse(t.ends_at);
       if (!end) return;
 
@@ -214,67 +230,58 @@
   /* ============================================================ Channels */
 
   function renderChannels() {
-    $('chServer').textContent = prefs.server;
-    var rows = CH.forServer(DB.data.channels, prefs.server);
-    var grid = $('chGrid');
-    grid.innerHTML = '';
+    $('chServer').textContent = CH.SERVER;
+    var rows = CH.forServer(DB.data.channels, CH.SERVER);
+    var list = $('chGrid');
+    list.innerHTML = '';
 
     var known = rows.filter(function (r) { return r.tick; }).length;
-    var age = CH.age(DB.data.channels, prefs.server);
+    var age = CH.age(DB.data.channels, CH.SERVER);
     $('chMeta').textContent = !known
-      ? 'keine Daten — g-status-Abgleich läuft noch nicht'
-      : ('Stand ' + (age === null ? '—' : U.fmtDur(age) + ' alt') + ' · Spawn stündlich ab Neustart');
+      ? 'keine Daten'
+      : ('stündlich · Stand ' + (age === null ? '—' : U.fmtDur(age) + ' alt'));
 
     rows.forEach(function (r) {
-      var box = U.el('div', 'chcard' + (r.status === 'offline' ? ' off' : ''));
-      box.dataset.ch = r.channel;
+      var li = U.el('li', 'chrow' + (r.status === 'offline' ? ' off' : ''));
+      li.dataset.ch = r.channel;
 
-      var top = U.el('div', 'chtop');
-      top.appendChild(U.el('span', 'chname', r.channel));
       var dot = U.el('span', 'dot ' + (r.status === 'online' ? 'ok' : r.status === 'offline' ? 'bad' : 'off'));
-      dot.title = r.status;
-      top.appendChild(dot);
-      box.appendChild(top);
+      li.appendChild(dot);
+      li.appendChild(U.el('span', 'chn', r.channel));
+      li.appendChild(U.el('b', 'chcd', r.secondsToNext === null ? '—' : U.fmtClock(r.secondsToNext)));
 
-      var cd = U.el('div', 'chcd');
-      cd.textContent = r.secondsToNext === null ? '—' : U.fmtClock(r.secondsToNext);
-      box.appendChild(cd);
-
-      var sub = U.el('div', 'chsub');
       if (r.tick) {
         var mm = (r.tick.minute < 10 ? '0' : '') + r.tick.minute;
         var ss = (r.tick.second < 10 ? '0' : '') + r.tick.second;
-        sub.textContent = 'jede Stunde :' + mm + ':' + ss +
-                          (r.borrowedFrom ? ' (von ' + r.borrowedFrom + ')' : '');
-        sub.title = 'letzter Neustart ' + r.lastRestart + ' (Serverzeit)';
+        li.title = 'jede Stunde :' + mm + ':' + ss +
+                   (r.borrowedFrom ? ' (Zeit von ' + r.borrowedFrom + ')' : '') +
+                   ' — letzter Neustart ' + r.lastRestart + ' (Serverzeit)';
       } else {
-        sub.textContent = 'kein Neustart bekannt';
+        li.title = 'kein Neustart bekannt';
       }
-      box.appendChild(sub);
-
-      grid.appendChild(box);
+      list.appendChild(li);
     });
   }
 
   function tickChannels(now) {
-    var rows = CH.forServer(DB.data.channels, prefs.server, new Date(now));
+    var rows = CH.forServer(DB.data.channels, CH.SERVER, new Date(now));
     var lead = Math.max(0, ALARM.opts.lead || 0);
 
     rows.forEach(function (r) {
-      var card = document.querySelector('#chGrid .chcard[data-ch="' + r.channel + '"]');
-      if (card) {
-        var cd = card.querySelector('.chcd');
+      var li = document.querySelector('#chGrid .chrow[data-ch="' + r.channel + '"]');
+      if (li) {
+        var cd = li.querySelector('.chcd');
         if (cd) cd.textContent = r.secondsToNext === null ? '—' : U.fmtClock(r.secondsToNext);
-        card.classList.toggle('soon', r.secondsToNext !== null && r.secondsToNext <= 120);
+        li.classList.toggle('soon', r.secondsToNext !== null && r.secondsToNext <= 120);
       }
       if (!ALARM.opts.spawn || r.secondsToNext === null) return;
       if (r.secondsToNext > Math.max(lead, 1)) return;
 
       // Pro Channel und Stunde nur einmal.
-      var slot = prefs.server + ':' + r.channel + ':' + Math.floor((now + r.secondsToNext * 1000) / 3600000);
+      var slot = CH.SERVER + ':' + r.channel + ':' + Math.floor((now + r.secondsToNext * 1000) / 3600000);
       if (fired[slot]) return;
       fired[slot] = true;
-      ALARM.fire('_spawn', 'Spawn ' + r.channel + ' · ' + prefs.server,
+      ALARM.fire('_spawn', 'Spawn ' + r.channel + ' · ' + CH.SERVER,
         lead ? ('in ' + U.fmtDur(r.secondsToNext)) : 'jetzt');
     });
   }
@@ -297,12 +304,23 @@
     if (!c || !r) return;
 
     $('tdTitle').textContent = r.label + ' · ' + c.name;
-    $('tdInfo').textContent = t
+    $('tdInfo').textContent = (t && t.ends_at)
       ? ('läuft bis ' + U.fmtTime(t.ends_at) +
          (t.by_user ? ' · gestartet von ' + t.by_user : '') +
          ' · Vorgabe ' + U.fmtDur(r.seconds))
       : ('kein Timer · Vorgabe ' + U.fmtDur(r.seconds));
-    $('tdRemain').value = t ? U.fmtDur((Date.parse(t.ends_at) - Date.now()) / 1000) : U.fmtDur(r.seconds);
+    $('tdRemain').value = (t && t.ends_at)
+      ? U.fmtDur((Date.parse(t.ends_at) - Date.now()) / 1000)
+      : U.fmtDur(r.seconds);
+
+    $('tdRegiRow').hidden = !r.has_registration;
+    if (r.has_registration) {
+      var reg = t && t.registered_at;
+      $('tdRegi').textContent = reg
+        ? ('Anmeldung: ' + new Date(reg).toLocaleString('de-AT'))
+        : 'keine Anmeldung eingetragen';
+      $('tdRegiSet').textContent = reg ? 'Regi zurücksetzen' : 'Regi gemacht';
+    }
     $('timerDlg').hidden = false;
     $('tdRemain').focus();
   }
@@ -312,14 +330,13 @@
   function openCharDialog(id) {
     var c = id ? DB.data.chars.find(function (x) { return x.id === id; }) : null;
     dlgChar = c || {
-      id: U.uuid(), name: '', server: prefs.server,
+      id: U.uuid(), name: '', server: CH.SERVER,
       owner: ZGATE.user(), note: '', sort: DB.data.chars.length
     };
     $('cdTitle').textContent = c ? 'Charakter bearbeiten' : 'Neuer Charakter';
     $('cdName').value = dlgChar.name;
     $('cdOwner').value = dlgChar.owner || '';
     $('cdNote').value = dlgChar.note || '';
-    fillServerPicker($('cdServer'), dlgChar.server);
     $('cdDelete').hidden = !c;
     $('charDlg').hidden = false;
     $('cdName').focus();
@@ -329,7 +346,7 @@
     var tbl = $('runTable');
     tbl.innerHTML = '';
     var head = U.el('tr');
-    ['Run', 'Dauer', 'ab Start', 'Farbe', ''].forEach(function (h) {
+    ['Run', 'Dauer', 'ab Start', 'Regi', 'Farbe', ''].forEach(function (h) {
       head.appendChild(U.el('th', null, h));
     });
     tbl.appendChild(head);
@@ -360,6 +377,13 @@
         cb.title = 'Cooldown läuft ab dem Betreten statt ab dem Abschluss';
         cb.onchange = function () { r.from_start = cb.checked; DB.saveRunType(r); render(); };
         tdS.appendChild(cb); tr.appendChild(tdS);
+
+        var tdR = U.el('td');
+        var rg = U.el('input');
+        rg.type = 'checkbox'; rg.checked = !!r.has_registration;
+        rg.title = 'Run hat eine Anmeldung (Meley) — zeigt den Regi-Knopf';
+        rg.onchange = function () { r.has_registration = rg.checked; DB.saveRunType(r); render(); };
+        tdR.appendChild(rg); tr.appendChild(tdR);
 
         var tdC = U.el('td');
         var col = U.el('input');
@@ -445,11 +469,6 @@
   /* ================================================================ Boot */
 
   function wire() {
-    fillServerPicker($('serverPick'), prefs.server);
-    $('serverPick').onchange = function () {
-      prefs.server = this.value; savePrefs(); render();
-    };
-
     $('filter').value = prefs.filter;
     $('filter').oninput = function () { prefs.filter = this.value; savePrefs(); render(); };
     $('onlyMine').checked = prefs.onlyMine;
@@ -473,6 +492,12 @@
       if (edit) return openCharDialog(edit.dataset.edit);
       var btn = ev.target.closest('button[data-char]');
       if (!btn) return;
+      if (btn.dataset.regi) {
+        var had = btn.classList.contains('set');
+        DB.setRegistration(btn.dataset.char, btn.dataset.run, had ? null : Date.now(), ZGATE.user());
+        render();
+        return;
+      }
       if (btn.classList.contains('running')) openTimerDialog(btn.dataset.char, btn.dataset.run);
       else startTimer(btn.dataset.char, btn.dataset.run);
     });
@@ -485,6 +510,14 @@
       var now = Date.now();
       DB.setTimer(dlgTimer.charId, dlgTimer.runKey, now, now + sec * 1000, ZGATE.user());
       $('timerDlg').hidden = true; render();
+    };
+    $('tdRegiSet').onclick = function () {
+      if (!dlgTimer) return;
+      var t = DB.timerFor(dlgTimer.charId, dlgTimer.runKey);
+      DB.setRegistration(dlgTimer.charId, dlgTimer.runKey,
+        (t && t.registered_at) ? null : Date.now(), ZGATE.user());
+      openTimerDialog(dlgTimer.charId, dlgTimer.runKey);   // Anzeige auffrischen
+      render();
     };
     $('tdRestart').onclick = function () {
       if (!dlgTimer) return;
@@ -504,7 +537,7 @@
       var name = $('cdName').value.trim();
       if (!name) { $('cdName').focus(); return; }
       dlgChar.name = name;
-      dlgChar.server = $('cdServer').value;
+      dlgChar.server = dlgChar.server || CH.SERVER;
       dlgChar.owner = $('cdOwner').value.trim();
       dlgChar.note = $('cdNote').value.trim();
       DB.saveChar(dlgChar);
@@ -549,7 +582,8 @@
       var key = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || ('run' + Date.now());
       DB.saveRunType({
         key: key, label: label, seconds: sec, from_start: false,
-        color: '#3aaac1', sort: (DB.data.run_types.length + 1) * 10, enabled: true
+        has_registration: false, color: '#3aaac1',
+        sort: (DB.data.run_types.length + 1) * 10, enabled: true
       });
       $('newRunLabel').value = ''; $('newRunDur').value = '';
       renderRunTable(); renderSoundRows(); render();

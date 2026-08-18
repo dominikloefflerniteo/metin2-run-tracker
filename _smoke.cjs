@@ -48,7 +48,7 @@ async function main() {
   ok($('bootError').hidden === false, 'ohne Supabase-Bibliothek erscheint der Hinweisbalken');
   ok(!doc.body.classList.contains('locked'), 'Gate ist entsperrt');
   ok(DB.runTypes().length === 6, '6 Runs voreingestellt: ' + DB.runTypes().map(r => r.label).join(', '));
-  ok(doc.querySelectorAll('#chGrid .chcard').length === 6, 'sechs Channel-Karten');
+  ok(doc.querySelectorAll('#chGrid .chrow').length === 6, 'sechs Channel-Zeilen in der Seitenspalte');
   ok(!$('emptyHint').hidden, 'Hinweis "noch kein Charakter" ist sichtbar');
 
   console.log('\n[Dauern lesen und schreiben]');
@@ -70,8 +70,11 @@ async function main() {
   ok(doc.querySelectorAll('#gridBody tr[data-char]').length === 1, 'eine Zeile in der Tabelle');
   const cells = doc.querySelectorAll('#gridBody tr[data-char] .chip');
   ok(cells.length === 6, 'sechs Zellen — eine je Run');
-  ok(cells[0].textContent.trim() === 'Start', 'Hydra laeuft ab Start -> Knopf heisst "Start"');
-  ok(cells[1].textContent.trim() === 'fertig', 'Nemere laeuft ab Abschluss -> "fertig"');
+  ok([...cells].every(c => c.textContent.trim() === 'starten'), 'alle Knoepfe heissen "starten"');
+  ok(/ab Start/.test(doc.querySelectorAll('#gridHead .run-sub')[0].textContent),
+     'Hydras Spaltenkopf sagt "ab Start"');
+  ok(!/ab Start/.test(doc.querySelectorAll('#gridHead .run-sub')[1].textContent),
+     'Nemere nicht');
 
   click(cells[0]);
   const t = DB.data.timers[0];
@@ -93,6 +96,36 @@ async function main() {
   click($('tdClear'));
   ok(DB.data.timers.length === 0, 'Timer geloescht');
   ok(doc.querySelectorAll('#gridBody .chip.ready').length === 6, 'alle Zellen wieder "bereit"');
+
+  console.log('\n[Anmeldung / Regi]');
+  const cellOf = (run) => [...doc.querySelectorAll('#gridBody tr[data-char] td')]
+    .find((td) => td.querySelector('button[data-run="' + run + '"]'));
+  ok(!!cellOf('meley').querySelector('.regi'), 'Meley hat einen Regi-Knopf');
+  ok(!cellOf('nemere').querySelector('.regi'), 'Nemere hat keinen');
+
+  click(cellOf('meley').querySelector('.regi'));
+  let mt = DB.timerFor(DB.data.chars[0].id, 'meley');
+  ok(!!(mt && mt.registered_at), 'Anmeldung gespeichert');
+  ok(mt.ends_at === null, 'ohne laufenden Cooldown — die Zeile traegt nur die Regi');
+  const regiBtn = cellOf('meley').querySelector('.regi');
+  ok(/^✓ Regi \d/.test(regiBtn.textContent), 'Uhrzeit steht im Knopf: ' + regiBtn.textContent);
+  ok(regiBtn.classList.contains('set'), 'als gesetzt markiert');
+  ok(!!cellOf('meley').querySelector('.chip.ready'), 'der Cooldown-Knopf bleibt daneben bedienbar');
+
+  // Den Lauf starten verbraucht die Anmeldung.
+  click(cellOf('meley').querySelector('.chip'));
+  mt = DB.timerFor(DB.data.chars[0].id, 'meley');
+  ok(mt.registered_at === null, 'mit dem Lauf ist die Anmeldung verbraucht');
+  ok((Date.parse(mt.ends_at) - Date.parse(mt.started_at)) / 1000 === 10800, 'Meley-Cooldown = 3 h');
+
+  // Regi wieder setzen, dann Cooldown loeschen -> Zeile bleibt wegen der Regi.
+  click(cellOf('meley').querySelector('.regi'));
+  DB.clearTimer(DB.data.chars[0].id, 'meley');
+  mt = DB.timerFor(DB.data.chars[0].id, 'meley');
+  ok(!!(mt && mt.registered_at && !mt.ends_at), 'Timer geloescht, Anmeldung bleibt');
+  DB.setRegistration(DB.data.chars[0].id, 'meley', null);
+  DB.clearTimer(DB.data.chars[0].id, 'meley');
+  ok(DB.timerFor(DB.data.chars[0].id, 'meley') === null, 'ohne beides verschwindet die Zeile');
 
   console.log('\n[Alarm]');
   let rang = null;

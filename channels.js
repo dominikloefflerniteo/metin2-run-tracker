@@ -18,6 +18,11 @@
 
   var CH = window.CH = {};
 
+  /* Gespielt wird nur auf einem Server — deshalb gibt es keine Auswahl mehr.
+     Der Cron holt trotzdem den ganzen DE-Cluster, ein Wechsel waere also nur
+     diese eine Zeile. */
+  CH.SERVER = 'Tigerghost';
+
   CH.SERVERS = [
     '[RUBY] Chimera',
     'Germania',

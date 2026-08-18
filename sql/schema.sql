@@ -33,8 +33,9 @@ create table if not exists public.timers (
   id          uuid primary key default gen_random_uuid(),
   char_id     uuid not null references public.chars(id) on delete cascade,
   run_key     text not null,
-  started_at  timestamptz not null default now(),
-  ends_at     timestamptz not null,
+  started_at  timestamptz,
+  ends_at     timestamptz,              -- leer = kein laufender Cooldown
+  registered_at timestamptz,            -- Zeitpunkt der Anmeldung ("Regi")
   by_user     text not null default '',
   updated_at  timestamptz not null default now(),
   unique (char_id, run_key)
@@ -50,18 +51,19 @@ create table if not exists public.run_types (
   seconds     int  not null,
   from_start  boolean not null default false,  -- true = Cooldown laeuft ab Betreten statt ab Abschluss
   color       text not null default '#3aaac1',
+  has_registration boolean not null default false,  -- Run mit Anmeldung (Meley)
   sort        int  not null default 0,
   enabled     boolean not null default true,
   updated_at  timestamptz not null default now()
 );
 
-insert into public.run_types (key, label, seconds, from_start, color, sort) values
-  ('hydra',  'Hydra',      20*60,   true,  '#e0574f', 10),
-  ('nemere', 'Nemere',     4*3600,  false, '#6aa9ff', 20),
-  ('jotun',  'Jotun',      2*3600,  false, '#7ad0c8', 30),
-  ('meley',  'Meley',      3*3600,  false, '#c9a227', 40),
-  ('sechs7', '6/7 Bonus',  24*3600, false, '#9a7fd1', 50),
-  ('bio',    'Bio',        24*3600, false, '#6fbf6f', 60)
+insert into public.run_types (key, label, seconds, from_start, color, has_registration, sort) values
+  ('hydra',  'Hydra',      20*60,   true,  '#e0574f', false, 10),
+  ('nemere', 'Nemere',     4*3600,  false, '#6aa9ff', false, 20),
+  ('jotun',  'Jotun',      2*3600,  false, '#7ad0c8', false, 30),
+  ('meley',  'Meley',      3*3600,  false, '#c9a227', true,  40),
+  ('sechs7', '6/7 Bonus',  24*3600, false, '#9a7fd1', false, 50),
+  ('bio',    'Bio',        24*3600, false, '#6fbf6f', false, 60)
 on conflict (key) do nothing;
 
 -- ------------------------------------------------------------- Channels
