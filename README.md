@@ -21,9 +21,10 @@ Balken statt einer stillen leeren Seite.
 - **Login je Charakter.** Geteilte Charaktere wechseln oft den Spieler, deshalb
   hat jede Zeile einen *Login*-Knopf: er markiert dich als eingeloggt und zeigt
   allen, wer gerade draufsitzt (mit Uhrzeit). *Logout* gibt den Charakter wieder
-  frei — dann gehört er niemandem. Sitzt jemand anderes drauf, fragt ein Klick
-  auf seinen Namen, ob du übernehmen willst. Das ist unabhängig vom Feld
-  *Spieler*, das dauerhaft sagt, wem der Charakter gehört.
+  frei — dann sitzt niemand drauf. Sitzt jemand anderes drauf, fragt ein Klick
+  auf seinen Namen, ob du übernehmen willst. **Wer sich einloggt, übernimmt auch
+  den Besitz** (Feld *Spieler*), der Charakter steht also ab dann unter seinem
+  Namen; ein Logout lässt den Besitz stehen.
 - **Ein Klick = Cooldown läuft.** Der Knopf heißt überall *starten*; ob der
   Cooldown im Spiel ab dem Betreten oder ab dem Abschluss zählt, steht in der
   Spaltenüberschrift (`ab Start`) und ist pro Run einstellbar.

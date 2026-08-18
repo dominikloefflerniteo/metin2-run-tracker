@@ -113,6 +113,8 @@ async function main() {
   ok(loginBtn().classList.contains('mine'), 'eigener Login ist hervorgehoben');
   ok(!!logoutBtn(), 'jetzt gibt es einen Logout-Knopf');
 
+  ok(ch.owner === 'Jogoe', 'Login übernimmt auch den Besitz (steht unter meinem Namen)');
+
   click(loginBtn());
   ok(DB.data.chars[0].logged_in_by === 'Jogoe', 'nochmal Login ändert nichts (dafür ist Logout da)');
 
@@ -133,7 +135,10 @@ async function main() {
   window.confirm = () => true;
   click(loginBtn());
   ok(DB.data.chars[0].logged_in_by === 'Jogoe', 'bestätigte Rückfrage übernimmt');
+  ok(DB.data.chars[0].owner === 'Jogoe', 'und der Besitz wandert mit');
   click(logoutBtn());
+  ok(DB.data.chars[0].owner === 'Jogoe', 'Logout lässt den Besitz stehen');
+  ok(DB.data.chars[0].name === 'Testchar', 'Teiländerung lässt den Namen unangetastet');
 
   console.log('\n[Anmeldung / Regi]');
   const cellOf = (run) => [...doc.querySelectorAll('#gridBody tr[data-char] td')]

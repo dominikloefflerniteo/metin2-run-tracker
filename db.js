@@ -182,6 +182,25 @@
     });
   }
 
+  /* Teiländerung an einer bestehenden Zeile.
+     KEIN upsert: PostgREST schickt daraus ein INSERT ... ON CONFLICT, und
+     Postgres prueft NOT NULL schon beim Bilden der Zeile — ein Teil-Upsert
+     ohne `name` scheitert also, bevor der Konflikt ueberhaupt erkannt wird
+     ("null value in column name violates not-null constraint"). */
+  function patch(table, id, fields) {
+    fields.updated_at = new Date().toISOString();
+    localUpsert(table, Object.assign({ id: id }, fields), ['id']);
+    if (!client) return Promise.resolve(true);
+    return client.from(table).update(fields).eq('id', id).then(function (res) {
+      if (res.error) {
+        setStatus('bad', 'Speichern fehlgeschlagen: ' + res.error.message);
+        console.error('[db] update ' + table, res.error);
+        return false;
+      }
+      return true;
+    });
+  }
+
   DB.saveChar = function (c) {
     c.updated_at = new Date().toISOString();
     return push('chars', c, 'id', ['id']);
@@ -191,12 +210,14 @@
      Nur ein Teil-Upsert, damit gleichzeitige Aenderungen an Name/Notiz nicht
      ueberschrieben werden. */
   DB.setLogin = function (charId, user) {
-    return push('chars', {
-      id: charId,
+    var fields = {
       logged_in_by: user || null,
-      logged_in_at: user ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString()
-    }, 'id', ['id']);
+      logged_in_at: user ? new Date().toISOString() : null
+    };
+    // Wer sich einloggt, uebernimmt den Charakter auch — er steht dann unter
+    // seinem Namen in der Liste. Beim Ausloggen bleibt der Besitz, wo er ist.
+    if (user) fields.owner = user;
+    return patch('chars', charId, fields);
   };
 
   DB.deleteChar = function (id) {
