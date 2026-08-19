@@ -360,6 +360,16 @@ async function main() {
   ok(window.PRICES.chestEV(DB.data.chest_values[0]) === 5000000,
      'Erwartungswert wird aus den Drops nachgerechnet: ' + window.PRICES.fmt(5000000));
 
+  // Dasselbe Item mehrfach in der Droptabelle -> eine Zeile, Raten addiert.
+  DB.data.chest_values[0].drops.push(
+    { vnum: 111, name: 'Teuer', qty: 1, rate: 10, unit: 50000000, ev: 5000000, priced: true, untradeable: false });
+  const br = window.PRICES.chestBreakdown(DB.data.chest_values[0]);
+  ok(br.length === 2, 'doppelter Eintrag wird zu einer Zeile zusammengefasst');
+  ok(br[0].rate === 20 && br[0].rows === 2, 'die Raten werden addiert (2 × 10 % = 20 %)');
+  ok(window.PRICES.chestEV(DB.data.chest_values[0]) === 10000000,
+     'und der Erwartungswert zaehlt beide: ' + window.PRICES.fmt(10000000));
+  DB.data.chest_values[0].drops.pop();
+
   click(doc.querySelector('#gridHead .valinfo'));
   ok($('valueDlg').hidden === false, 'der Knopf im Spaltenkopf öffnet die Aufschlüsselung');
   ok($('vdBody').textContent.indexOf('Unverkäuflich') !== -1, 'auch Drops ohne Preis stehen drin');
@@ -368,7 +378,8 @@ async function main() {
      'und ein Fazit (9 Mio Kauf gegen 5 Mio Erwartungswert -> verkaufen)');
 
   // Preis von Hand setzen: wirkt sofort, ohne auf den naechsten Push zu warten.
-  const inputs = [...$('vdBody').querySelectorAll('input')];
+  // Preisfelder, nicht die "zählt"-Haken: das letzte gehoert dem Drop ohne Preis.
+  const inputs = [...$('vdBody').querySelectorAll('.mini.drops input.txt')];
   const unverk = inputs[inputs.length - 1];
   unverk.value = '10 Mio';
   unverk.dispatchEvent(new window.Event('change', { bubbles: true }));
@@ -376,6 +387,17 @@ async function main() {
   ok(window.PRICES.override(222) === 10000000, 'und wird gefunden: ' + window.PRICES.fmt(10000000));
   ok(window.PRICES.chestEV(DB.data.chest_values[0]) === 6000000,
      'der Erwartungswert steigt sofort (2 × 10 Mio × 5 %): ' + window.PRICES.fmt(window.PRICES.chestEV(DB.data.chest_values[0])));
+
+  // "zählt nicht": faellt ganz aus der Rechnung, der gesetzte Preis bleibt aber stehen.
+  DB.setPriceIgnored(111, true, 'Teuer', 'Jogoe');
+  ok(window.PRICES.ignored(111), 'Drop ist abgewählt');
+  ok(window.PRICES.chestEV(DB.data.chest_values[0]) === 1000000,
+     'der teure Drop faellt raus, nur der ueberschriebene bleibt: ' +
+     window.PRICES.fmt(window.PRICES.chestEV(DB.data.chest_values[0])));
+  DB.setPriceIgnored(111, false);
+  ok(DB.data.price_overrides.filter((o) => Number(o.vnum) === 111).length === 0,
+     'wieder mitgezaehlt -> die Zeile verschwindet, weil nichts mehr zu merken ist');
+  ok(window.PRICES.chestEV(DB.data.chest_values[0]) === 6000000, 'und der Wert ist zurueck');
 
   DB.setPriceOverride(222, 0);
   ok(DB.data.price_overrides.length === 0, 'leeres Feld nimmt die Überschreibung wieder zurück');

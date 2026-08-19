@@ -693,24 +693,33 @@
       }
       sec.appendChild(cmp);
 
-      var noPrice = rows.filter(function (r) { return !r.unit; }).length;
+      var noPrice = rows.filter(function (r) { return !r.unit && !r.ignored; }).length;
+      var skipped = rows.filter(function (r) { return r.ignored; }).length;
+      var merged = rows.reduce(function (s, r) { return s + (r.rows > 1 ? r.rows - 1 : 0); }, 0);
       sec.appendChild(U.el('p', 'sub',
         rows.length + ' mögliche Drops' +
-        (noPrice ? ' · ' + noPrice + ' ohne Preis (zählen mit 0 — hier eintragen, wenn du es besser weißt)' : '')));
+        (merged ? ' (' + (rows.length + merged) + ' Einträge — gleiche Items zusammengefasst)' : '') +
+        (noPrice ? ' · ' + noPrice + ' ohne Preis (zählen mit 0 — hier eintragen, wenn du es besser weißt)' : '') +
+        (skipped ? ' · ' + skipped + ' abgewählt' : '')));
 
       var dt = U.el('table', 'mini drops');
       var dh = U.el('tr');
-      ['Drop', 'Rate', 'Stück', 'Wert je Stück', 'Beitrag'].forEach(function (h) {
+      ['Drop', 'Rate', 'Stück', 'Wert je Stück', 'Beitrag', 'zählt'].forEach(function (h) {
         dh.appendChild(U.el('th', null, h));
       });
       dt.appendChild(dh);
 
       rows.forEach(function (d) {
-        var tr = U.el('tr', d.unit ? '' : 'nop');
+        var tr = U.el('tr', (d.ignored ? 'skip' : (d.unit ? '' : 'nop')));
         var tdN = U.el('td', null, d.name);
         if (d.untradeable) tdN.title = 'nicht handelbar — hat nie einen Marktpreis';
         tr.appendChild(tdN);
-        tr.appendChild(U.el('td', 'dim', d.rate.toLocaleString('de-DE') + ' %'));
+        var tdR = U.el('td', 'dim', d.rate.toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' %');
+        if (d.rows > 1) {
+          tdR.textContent += ' *';
+          tdR.title = d.rows + ' Einträge in der Droptabelle, hier zusammengefasst';
+        }
+        tr.appendChild(tdR);
         tr.appendChild(U.el('td', 'dim', d.qty > 1 ? d.qty + '×' : ''));
 
         var tdU = U.el('td');
@@ -727,7 +736,21 @@
         };
         tdU.appendChild(inU); tr.appendChild(tdU);
 
-        tr.appendChild(U.el('td', null, d.ev ? PRICES.fmt(d.ev) : '—'));
+        tr.appendChild(U.el('td', null, d.ignored ? 'zählt nicht' : (d.ev ? PRICES.fmt(d.ev) : '—')));
+
+        // Haken raus = der Drop faellt aus der Rechnung. Fuer alles, was man
+        // ohnehin liegen laesst; ein gesetzter Preis bleibt dabei erhalten.
+        var tdI = U.el('td');
+        var cbI = U.el('input');
+        cbI.type = 'checkbox';
+        cbI.checked = !d.ignored;
+        cbI.title = 'Haken raus: dieser Drop wird nicht mitgezählt';
+        cbI.onchange = function () {
+          DB.setPriceIgnored(d.vnum, !cbI.checked, d.name, ZGATE.user());
+          openValueDlg(runKey); render();
+        };
+        tdI.appendChild(cbI); tr.appendChild(tdI);
+
         dt.appendChild(tr);
       });
       sec.appendChild(dt);

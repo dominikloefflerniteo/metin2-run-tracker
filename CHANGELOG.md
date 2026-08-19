@@ -22,6 +22,10 @@ Was ein Run wert ist
   Seitenspalte): Truhen pro Run, und je Truhe **jeder** mögliche Drop mit Rate,
   Stückpreis und Beitrag — dazu **Marktpreis gegen Erwartungswert** samt Fazit
   *öffnen* oder *verkaufen*.
+- Steht dasselbe Item **mehrfach** in einer Droptabelle (Titandioxid liegt
+  zweimal mit 0,89 % in der Nemere-Truhe), wird es in der Anzeige zu einer
+  Zeile mit addierter Rate zusammengefasst und mit `*` markiert. An der
+  Rechnung ändert das nichts — 2 × 0,89 % ist dasselbe wie 1 × 1,78 %.
 - **Preise von Hand setzen**, direkt in der Aufschlüsselung. Nötig für alles,
   was nicht handelbar ist (Segenskugel, Blutstein) und deshalb nie einen
   Marktpreis hat. Gilt für alle, wirkt sofort — der Erwartungswert wird im

@@ -334,21 +334,45 @@
     return client.from('run_loot').delete().eq('id', id).then(function () { return true; });
   };
 
-  /* Preis von Hand setzen. price = 0 loescht die Ueberschreibung wieder, dann
-     zaehlt wieder der Markt. */
-  DB.setPriceOverride = function (vnum, price, name, user) {
-    if (!price) {
-      localDelete('price_overrides', { vnum: Number(vnum) });
-      if (!client) return Promise.resolve(true);
-      return client.from('price_overrides').delete().eq('vnum', Number(vnum))
-        .then(function () { return true; });
-    }
+  function overrideRow(vnum) {
+    return DB.data.price_overrides.find(function (r) {
+      return Number(r.vnum) === Number(vnum);
+    }) || null;
+  }
+
+  function dropOverride(vnum) {
+    localDelete('price_overrides', { vnum: Number(vnum) });
+    if (!client) return Promise.resolve(true);
+    return client.from('price_overrides').delete().eq('vnum', Number(vnum))
+      .then(function () { return true; });
+  }
+
+  function saveOverride(vnum, fields, name, user) {
+    var old = overrideRow(vnum) || {};
     var row = {
-      server: '[DIA] Blos', vnum: Number(vnum), name: String(name || ''),
-      price: Math.round(price), by_user: user || '',
+      server: '[DIA] Blos',
+      vnum: Number(vnum),
+      name: String(name || old.name || ''),
+      price: 'price' in fields ? Math.round(fields.price) : (Number(old.price) || 0),
+      ignored: 'ignored' in fields ? !!fields.ignored : !!old.ignored,
+      by_user: user || old.by_user || '',
       updated_at: new Date().toISOString()
     };
+    // Nichts mehr zu merken -> Zeile weg, dann zaehlt wieder der Markt.
+    if (!row.price && !row.ignored) return dropOverride(vnum);
     return push('price_overrides', row, 'server,vnum', ['server', 'vnum']);
+  }
+
+  /* Preis von Hand setzen. price = 0 nimmt die Ueberschreibung zurueck. */
+  DB.setPriceOverride = function (vnum, price, name, user) {
+    return saveOverride(vnum, { price: price || 0 }, name, user);
+  };
+
+  /* "zählt nicht": der Drop faellt aus dem Erwartungswert heraus — fuer alles,
+     was man ohnehin liegen laesst. Unabhaengig vom Preis, damit ein gesetzter
+     Wert erhalten bleibt, wenn man es wieder mitzaehlt. */
+  DB.setPriceIgnored = function (vnum, on, name, user) {
+    return saveOverride(vnum, { ignored: !!on }, name, user);
   };
 
   DB.lootFor = function (runKey) {

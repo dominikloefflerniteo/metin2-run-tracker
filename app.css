@@ -383,3 +383,5 @@ table.mini input[type=color] {
 .cmp-v { font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .cmp-v.good { color: var(--safe); }
 .cmp-v.bad { color: var(--danger); }
+.mini.drops tr.skip td { color: var(--fg-dim); opacity: .5; text-decoration: line-through; }
+.mini.drops tr.skip td:last-child { text-decoration: none; opacity: 1; }

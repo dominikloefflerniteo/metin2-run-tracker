@@ -72,11 +72,23 @@
   /* Von Hand gesetzter Preis, falls vorhanden. Dafuer gibt es zwei Gruende:
      Untradeables haben nie einen Marktpreis (stehen also auf 0), und manchmal
      weiss man es einfach besser als der Markt-Schnitt. Gilt fuer alle. */
-  P.override = function (vnum) {
-    var o = (DB.data.price_overrides || []).find(function (r) {
+  function overrideRow(vnum) {
+    return (DB.data.price_overrides || []).find(function (r) {
       return Number(r.vnum) === Number(vnum);
-    });
+    }) || null;
+  }
+
+  P.override = function (vnum) {
+    var o = overrideRow(vnum);
     return o && Number(o.price) > 0 ? Number(o.price) : null;
+  };
+
+  /* "zählt nicht" — der Drop faellt komplett aus der Rechnung. Gedacht fuer
+     alles, was man ohnehin liegen laesst; nicht dasselbe wie "kein Preis
+     bekannt", auch wenn beides mit 0 endet. */
+  P.ignored = function (vnum) {
+    var o = overrideRow(vnum);
+    return !!(o && o.ignored);
   };
 
   /* Erwartungswert einer Truhe, aus ihren Drops NACHGERECHNET — damit ein von
@@ -88,6 +100,7 @@
     var openings = Number(c.openings) || 1;
     var sum = 0;
     c.drops.forEach(function (d) {
+      if (P.ignored(d.vnum)) return;
       var unit = P.override(d.vnum);
       if (unit === null) unit = Number(d.unit) || 0;
       sum += unit * (Number(d.qty) || 0) * ((Number(d.rate) || 0) / 100) * openings;
@@ -95,25 +108,53 @@
     return sum;
   };
 
-  /* Dieselbe Aufschluesselung, aber mit Ueberschreibungen und sortiert. */
+  /* Dieselbe Aufschluesselung, aber mit Ueberschreibungen und sortiert.
+     Dasselbe Item steht in einer Droptabelle oft MEHRFACH (Titandioxid liegt
+     zweimal mit 0,89 % in der Nemere-Truhe). Fuer die Rechnung ist das egal —
+     2 × 0,89 % ist dasselbe wie 1 × 1,78 % — aber in der Liste sieht es nach
+     einem Fehler aus. Deshalb werden gleiche Zeilen hier zusammengefasst und
+     ihre Raten addiert. */
   P.chestBreakdown = function (c) {
     if (!c || !Array.isArray(c.drops)) return [];
     var openings = Number(c.openings) || 1;
-    return c.drops.map(function (d) {
+    return merge(c.drops).map(function (d) {
       var ov = P.override(d.vnum);
       var unit = ov === null ? (Number(d.unit) || 0) : ov;
+      var skip = P.ignored(d.vnum);
       return {
         vnum: d.vnum,
         name: d.name,
         qty: Number(d.qty) || 0,
         rate: Number(d.rate) || 0,
+        rows: d.rows || 1,          // wie viele Eintraege zusammengefasst wurden
         unit: unit,
         manual: ov !== null,
+        ignored: skip,
         untradeable: !!d.untradeable,
-        ev: unit * (Number(d.qty) || 0) * ((Number(d.rate) || 0) / 100) * openings
+        ev: skip ? 0 : unit * (Number(d.qty) || 0) * ((Number(d.rate) || 0) / 100) * openings
       };
     }).sort(function (a, b) { return b.ev - a.ev; });
   };
+
+  /* Gleiches Item UND gleiche Stueckzahl -> eine Zeile, Raten addiert.
+     Unterschiedliche Mengen bleiben getrennt (3× Gegenstand verstaerken ist
+     nicht dasselbe wie 1×). */
+  function merge(drops) {
+    var out = [], byKey = {};
+    drops.forEach(function (d) {
+      var key = d.vnum + ':' + d.qty;
+      if (byKey[key]) {
+        byKey[key].rate += Number(d.rate) || 0;
+        byKey[key].rows++;
+        return;
+      }
+      var copy = { vnum: d.vnum, name: d.name, qty: d.qty, rate: Number(d.rate) || 0,
+                   unit: d.unit, untradeable: d.untradeable, rows: 1 };
+      byKey[key] = copy;
+      out.push(copy);
+    });
+    return out;
+  }
 
   /* Sekunden seit dem juengsten Preis-Zeitstempel; null = noch keine Preise. */
   P.age = function () {
