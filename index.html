@@ -51,6 +51,13 @@
     </div>
 
     <aside class="side" id="chbar">
+      <div id="valueBlock" hidden>
+        <div class="side-head">Was lohnt sich <span class="dim" id="valAge"></span></div>
+        <ul class="vallist" id="valList"></ul>
+        <div class="side-foot" id="valMeta">—</div>
+        <div class="side-sep"></div>
+      </div>
+
       <div id="chBlock">
         <div class="side-head">Spawns <span class="dim" id="chServer"></span></div>
         <ul class="chlist" id="chGrid"></ul>
@@ -127,6 +134,25 @@
       </section>
 
       <section class="card">
+        <div class="label">Run-Beute</div>
+        <p class="sub">
+          Was ein Run im Schnitt abwirft. Daraus rechnet die Seite Wert/Run und
+          Yang pro Stunde. Menge darf krumm sein (<b>0,5</b> = jeder zweite Run).
+          <b>Kosten</b> ankreuzen für Schlüssel, Eintritt oder Verbrauchsgüter —
+          die werden abgezogen. Die Preise kommen vom Rechner, der
+          metin-bazar-pro laufen lässt.
+        </p>
+        <table class="mini" id="lootTable"></table>
+        <div class="row">
+          <select class="txt small" id="newLootRun"></select>
+          <select class="txt small" id="newLootChest"></select>
+          <input class="txt small" id="newLootQty" placeholder="Menge" value="1" />
+          <button class="btn" id="btnAddLoot">hinzufügen</button>
+        </div>
+        <p class="sub" id="lootHint"></p>
+      </section>
+
+      <section class="card">
         <div class="label">Runs &amp; Cooldowns</div>
         <p class="sub">Gilt für alle. Dauer im Format <b>2h</b>, <b>20m</b>, <b>3h30m</b> oder <b>7d</b>.</p>
         <table class="mini" id="runTable"></table>
@@ -196,6 +222,7 @@
 <script src="util.js"></script>
 <script src="db.js"></script>
 <script src="channels.js"></script>
+<script src="prices.js"></script>
 <script src="alarm.js"></script>
 <script src="app.js"></script>
 </body>

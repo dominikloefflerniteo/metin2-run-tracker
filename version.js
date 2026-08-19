@@ -9,7 +9,7 @@
  *   erste Stelle   -> wenn es sich rund anfühlt (1.0 = im täglichen Einsatz)
  */
 window.APP_VERSION = {
-  number: '0.7.0',
-  date: '2026-08-18',
-  note: 'Notizen-Spalte, Account, Gruppierung nach Login'
+  number: '0.8.0',
+  date: '2026-08-20',
+  note: 'Truhenwerte: Wert pro Run und Yang/h'
 };

@@ -36,7 +36,7 @@ async function main() {
   window.localStorage.setItem('m2rt.gate.v1', JSON.stringify({ ok: true, user: 'Jogoe' }));
 
   // Kein Netz im Test: kein window.supabase -> DB bleibt lokal.
-  for (const f of ['version.js', 'gate.js', 'util.js', 'db.js', 'channels.js', 'alarm.js', 'app.js']) {
+  for (const f of ['version.js', 'gate.js', 'util.js', 'db.js', 'channels.js', 'prices.js', 'alarm.js', 'app.js']) {
     window.eval(fs.readFileSync(path.join(__dirname, f), 'utf8'));
   }
 
@@ -294,6 +294,54 @@ async function main() {
   // Zeile neu holen: zwischendurch wurde neu gezeichnet, die alte haengt frei.
   click(doc.querySelector('#spawnList .sprow .spdel'));
   ok(DB.data.spawns.length === 0, 'Spawn gelöscht');
+
+  console.log('\n[Truhenwerte]');
+  // Preise kommen sonst vom Push-Job; hier von Hand gesetzt.
+  const WON = 100000000;
+  DB.data.chest_values = [
+    { server: 'x', vnum: 54703, name: 'Truhe des Nemere', expected_value: 20000000,
+      chest_price: 9000000, fetched_at: new Date().toISOString() },
+    { server: 'x', vnum: 99999, name: 'Schluesselkiste', expected_value: 1000000,
+      chest_price: 0, fetched_at: new Date().toISOString() }
+  ];
+  DB.data.item_prices = [];
+  DB.data.run_loot = [
+    { id: 'l1', run_key: 'nemere', vnum: 54703, name: 'Truhe des Nemere', kind: 'chest', qty: 9, is_cost: false, sort: 10 },
+    { id: 'l2', run_key: 'nemere', vnum: 99999, name: 'Schluesselkiste', kind: 'chest', qty: 2, is_cost: true, sort: 20 }
+  ];
+
+  const nem = window.PRICES.valueFor('nemere');
+  ok(nem.gain === 180000000, '9 Truhen à 20 Mio = 180 Mio Ertrag');
+  ok(nem.cost === 2000000, 'Kosten werden getrennt gezaehlt (2 × 1 Mio)');
+  ok(nem.perRun === 178000000, 'Wert pro Run = Ertrag minus Kosten: ' + window.PRICES.fmt(nem.perRun));
+  ok(Math.round(nem.perHour) === 44500000, 'ueber den Cooldown (4h): ' + window.PRICES.fmtShort(nem.perHour) + '/h');
+  ok(nem.perHourActive === null, 'ohne Laufzeit gibt es keinen Laufzeit-Wert');
+  ok(window.PRICES.valueFor('bio') === null, 'ein Run ohne Beute liefert null');
+
+  // Laufzeit eintragen -> die eigene Stunde zaehlt, nicht der Cooldown.
+  const rtNem = DB.data.run_types.find((r) => r.key === 'nemere');
+  rtNem.run_seconds = 20 * 60;
+  const nem2 = window.PRICES.valueFor('nemere');
+  ok(Math.round(nem2.perHourActive) === 534000000, '20 min Laufzeit -> ' + window.PRICES.fmtShort(nem2.perHourActive) + '/h');
+  ok(window.PRICES.ranking()[0].runKey === 'nemere', 'Rangliste fuehrt Nemere');
+
+  ok(window.PRICES.fmt(1.21 * WON).indexOf('Won') !== -1, 'ab 100 Mio wird in Won angezeigt: ' + window.PRICES.fmt(1.21 * WON));
+  ok(window.PRICES.fmt(4952511).indexOf('Yang') !== -1, 'darunter in Yang: ' + window.PRICES.fmt(4952511));
+  ok(window.PRICES.ageClass(60) === 'fresh' && window.PRICES.ageClass(3600) === 'ok' &&
+     window.PRICES.ageClass(99999) === 'stale' && window.PRICES.ageClass(null) === 'none',
+     'Alter der Preise wird eingestuft');
+
+  DB.data.chars.length && click($('btnAddChar'));   // Dialog wieder schliessen, falls offen
+  $('charDlg').hidden = true;
+  window.eval('render && render()');
+  DB.onChange && DB.data && (function () { /* Neuzeichnen ueber den normalen Weg */ })();
+  click($('btnCloseSettings'));
+  $('filter').dispatchEvent(new window.Event('input', { bubbles: true }));  // loest render() aus
+  ok(!$('valueBlock').hidden, 'Seitenspalte "Was lohnt sich" ist sichtbar');
+  ok($('valList').children.length === 1, 'ein Run mit Beute in der Liste');
+  ok($('valList').textContent.indexOf('Nemere') !== -1, 'und zwar Nemere');
+  ok($('valAge').className.indexOf('age-fresh') !== -1, 'frische Preise werden gruen markiert');
+  ok(doc.querySelector('#gridHead .run-val') !== null, 'der Wert steht auch im Spaltenkopf');
 
   console.log('\n[Gate]');
   const dom2 = new JSDOM(html, { runScripts: 'outside-only', url: 'http://localhost/' });

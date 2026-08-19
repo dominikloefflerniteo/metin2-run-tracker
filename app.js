@@ -85,6 +85,32 @@
       var sub = U.el('span', 'run-sub', U.fmtDur(r.seconds) + (r.from_start ? ' · ab Start' : ''));
       th.appendChild(box);
       th.appendChild(sub);
+
+      // Wert des Runs, sofern Beute eingetragen ist. Yang/h ist die Zahl, mit
+      // der sich zwei Runs vergleichen lassen — deshalb steht sie fett da.
+      var val = PRICES.valueFor(r.key);
+      if (val) {
+        var v = U.el('span', 'run-val' + (val.perRun < 0 ? ' bad' : ''));
+        // Fett steht die Zahl, nach der man entscheidet: gibt es eine
+        // Laufzeit, ist das die eigene Stunde — sonst bleibt der Cooldown.
+        var lead = val.perHourActive === null ? val.perHour : val.perHourActive;
+        v.appendChild(U.el('b', null, PRICES.fmtShort(lead) + '/h'));
+        var second = PRICES.fmtShort(val.perRun) + '/Run';
+        if (val.perHourActive !== null) {
+          second += ' · ' + PRICES.fmtShort(val.perHour) + '/h CD';
+        }
+        v.appendChild(U.el('span', 'run-val-run', second));
+        v.title = val.parts.map(function (p) {
+          return (p.isCost ? '− ' : '') + p.qty + '× ' + p.name + ' = ' + PRICES.fmt(p.value);
+        }).join('\n')
+          + '\n\n' + PRICES.fmt(val.perRun) + ' pro Run'
+          + (val.perHourActive !== null
+              ? '\n' + PRICES.fmt(val.perHourActive) + '/h bei ' + U.fmtDur(val.runSeconds) + ' Laufzeit'
+              : '\n(Laufzeit nicht eingetragen — Einstellungen → Runs)')
+          + '\n' + PRICES.fmt(val.perHour) + '/h über den Cooldown (' + U.fmtDur(val.seconds) + ')'
+          + (val.missing ? '\n\n' + val.missing + ' Position(en) ohne Preis' : '');
+        th.appendChild(v);
+      }
       tr.appendChild(th);
     });
     tr.appendChild(U.el('th', 'th-act', ''));
@@ -267,6 +293,7 @@
 
     renderChannels();
     renderSpawns();
+    paintValues();
   }
 
   /* Nur die Zahlen nachziehen — kein Neuaufbau, sonst flackert es und man
@@ -504,11 +531,143 @@
     $('cdName').focus();
   }
 
+  /* ======================================================= Was lohnt sich */
+
+  /* Seitenspalte: Runs nach Yang pro Stunde. Das Alter der Preise steht immer
+     daneben — die Zahlen entstehen auf Dominiks PC, laeuft der nicht, sind sie
+     alt, und eine alte Zahl ohne Datum ist schlimmer als gar keine. */
+  function paintValues() {
+    var rank = PRICES.ranking();
+    $('valueBlock').hidden = rank.length === 0;
+    if (!rank.length) return;
+
+    var age = PRICES.age();
+    var cls = PRICES.ageClass(age);
+    var lbl = $('valAge');
+    lbl.textContent = age === null ? 'keine Preise' : 'Preise ' + U.fmtDur(age) + ' alt';
+    lbl.className = 'dim age-' + cls;
+    lbl.title = cls === 'stale'
+      ? 'Der Rechner mit metin-bazar-pro läuft gerade nicht — die Preise stehen still.'
+      : 'Die Preise werden alle 10 Minuten frisch gerechnet.';
+
+    var list = $('valList');
+    list.innerHTML = '';
+    rank.forEach(function (v) {
+      var li = U.el('li', 'valrow' + (v.perRun < 0 ? ' bad' : ''));
+      var dot = U.el('span', 'run-dot');
+      dot.style.background = v.color || '#888';
+      li.appendChild(dot);
+      li.appendChild(U.el('span', 'valname', v.label));
+      var lead = v.perHourActive === null ? v.perHour : v.perHourActive;
+      var b = U.el('b', 'valh', PRICES.fmtShort(lead) + '/h');
+      if (v.perHourActive === null) b.classList.add('cdonly');
+      li.appendChild(b);
+      li.appendChild(U.el('span', 'valrun',
+        PRICES.fmtShort(v.perRun) + '/Run' +
+        (v.runSeconds ? ' · ' + U.fmtDur(v.runSeconds) : ' · Laufzeit fehlt')));
+      li.title = v.parts.map(function (p) {
+        return (p.isCost ? '− ' : '') + p.qty + '× ' + p.name +
+               ' à ' + PRICES.fmt(p.unit) + ' = ' + PRICES.fmt(p.value);
+      }).join('\n')
+        + '\n\n' + PRICES.fmt(v.perRun) + ' pro Run'
+        + (v.perHourActive !== null
+            ? '\n' + PRICES.fmt(v.perHourActive) + '/h bei ' + U.fmtDur(v.runSeconds) + ' Laufzeit'
+            : '\n(keine Laufzeit eingetragen — gerechnet über den Cooldown)')
+        + '\n' + PRICES.fmt(v.perHour) + '/h über den Cooldown (' + U.fmtDur(v.seconds) + ')';
+      list.appendChild(li);
+    });
+
+    var miss = rank.reduce(function (s, v) { return s + v.missing; }, 0);
+    $('valMeta').textContent = miss
+      ? miss + ' Position(en) ohne Preis — Untergrenze'
+      : 'Erwartungswert nach Drop-Raten, Marktpreise der letzten 7 Tage';
+  }
+
+  /* --------------------------------------------------- Beute bearbeiten */
+
+  function renderLootTable() {
+    var tbl = $('lootTable');
+    tbl.innerHTML = '';
+    var head = U.el('tr');
+    ['Run', 'Truhe / Item', 'Ø pro Run', 'Wert', 'Kosten', ''].forEach(function (h) {
+      head.appendChild(U.el('th', null, h));
+    });
+    tbl.appendChild(head);
+
+    var runs = {};
+    DB.data.run_types.forEach(function (r) { runs[r.key] = r.label; });
+
+    DB.data.run_loot.slice()
+      .sort(function (a, b) {
+        return String(a.run_key).localeCompare(String(b.run_key)) || (a.sort || 0) - (b.sort || 0);
+      })
+      .forEach(function (l) {
+        var tr = U.el('tr');
+        tr.appendChild(U.el('td', null, runs[l.run_key] || l.run_key));
+        tr.appendChild(U.el('td', null, l.name || ('vnum ' + l.vnum)));
+
+        var tdQ = U.el('td');
+        var inQ = U.el('input', 'txt small');
+        inQ.value = String(l.qty).replace('.', ',');
+        inQ.onchange = function () {
+          var n = parseFloat(String(inQ.value).replace(',', '.'));
+          if (!isFinite(n) || n < 0) { inQ.value = String(l.qty).replace('.', ','); return; }
+          l.qty = n; DB.saveRunLoot(l); renderLootTable(); render();
+        };
+        tdQ.appendChild(inQ); tr.appendChild(tdQ);
+
+        // Was diese eine Position beisteuert — sonst raet man beim Eintragen.
+        var src = l.kind === 'item'
+          ? DB.data.item_prices.find(function (p) { return Number(p.vnum) === Number(l.vnum); })
+          : DB.data.chest_values.find(function (p) { return Number(p.vnum) === Number(l.vnum); });
+        var unit = src ? Number(l.kind === 'item' ? src.price : src.expected_value) : 0;
+        tr.appendChild(U.el('td', 'dim', unit ? PRICES.fmtShort(unit * Number(l.qty)) : '—'));
+
+        var tdC = U.el('td');
+        var cb = U.el('input');
+        cb.type = 'checkbox'; cb.checked = !!l.is_cost;
+        cb.title = 'wird abgezogen statt addiert (Schlüssel, Eintritt, Verbrauch)';
+        cb.onchange = function () { l.is_cost = cb.checked; DB.saveRunLoot(l); renderLootTable(); render(); };
+        tdC.appendChild(cb); tr.appendChild(tdC);
+
+        var tdX = U.el('td');
+        var del = U.el('button', 'btn tiny danger', '×');
+        del.onclick = function () {
+          DB.deleteRunLoot(l.id);
+          renderLootTable(); render();
+        };
+        tdX.appendChild(del); tr.appendChild(tdX);
+
+        tbl.appendChild(tr);
+      });
+
+    // Auswahlfelder fuellen
+    var selR = $('newLootRun');
+    selR.innerHTML = '';
+    DB.runTypes().forEach(function (r) {
+      var o = U.el('option', null, r.label); o.value = r.key; selR.appendChild(o);
+    });
+
+    var selC = $('newLootChest');
+    selC.innerHTML = '';
+    DB.data.chest_values.slice()
+      .sort(function (a, b) { return Number(b.expected_value) - Number(a.expected_value); })
+      .forEach(function (c) {
+        var o = U.el('option', null, c.name + ' — ' + PRICES.fmtShort(c.expected_value));
+        o.value = 'chest:' + c.vnum + ':' + c.name;
+        selC.appendChild(o);
+      });
+
+    $('lootHint').textContent = DB.data.chest_values.length
+      ? DB.data.chest_values.length + ' Truhen mit Erwartungswert verfügbar'
+      : 'Noch keine Truhenpreise da — der Push-Job auf Dominiks PC füllt sie.';
+  }
+
   function renderRunTable() {
     var tbl = $('runTable');
     tbl.innerHTML = '';
     var head = U.el('tr');
-    ['Run', 'Dauer', 'ab Start', 'Regi', 'Farbe', ''].forEach(function (h) {
+    ['Run', 'Cooldown', 'Laufzeit', 'ab Start', 'Regi', 'Farbe', ''].forEach(function (h) {
       head.appendChild(U.el('th', null, h));
     });
     tbl.appendChild(head);
@@ -532,6 +691,22 @@
           r.seconds = s; DB.saveRunType(r); inD.value = U.fmtDur(s); render();
         };
         tdD.appendChild(inD); tr.appendChild(tdD);
+
+        // Wie lange der Run tatsaechlich dauert. Daraus kommt der ehrliche
+        // Stundenwert: wer genug Charaktere hat, wartet nie auf den Cooldown.
+        var tdA = U.el('td');
+        var inA = U.el('input', 'txt small');
+        inA.value = r.run_seconds ? U.fmtDur(r.run_seconds) : '';
+        inA.placeholder = 'z. B. 12m';
+        inA.title = 'Wie lange du für den Run brauchst — daraus rechnet die Seite Yang/h';
+        inA.onchange = function () {
+          var s = U.parseDur(inA.value);
+          r.run_seconds = s;                      // leer bzw. Unsinn = 0 = nicht gesetzt
+          DB.saveRunType(r);
+          inA.value = s ? U.fmtDur(s) : '';
+          render();
+        };
+        tdA.appendChild(inA); tr.appendChild(tdA);
 
         var tdS = U.el('td');
         var cb = U.el('input');
@@ -614,6 +789,7 @@
     $('optLead').value = ALARM.opts.lead;
     $('optVolume').value = Math.round(ALARM.opts.volume * 100);
     paintNotifyState();
+    renderLootTable();
     renderRunTable();
     renderSoundRows();
     $('settings').hidden = false;
@@ -755,6 +931,21 @@
         paintNotifyState();
       });
     };
+    $('btnAddLoot').onclick = function () {
+      var runKey = $('newLootRun').value;
+      var pick = String($('newLootChest').value || '').split(':');
+      var qty = parseFloat(String($('newLootQty').value).replace(',', '.'));
+      if (!runKey || pick.length < 3 || !isFinite(qty) || qty <= 0) return;
+      DB.saveRunLoot({
+        id: U.uuid(), run_key: runKey, vnum: Number(pick[1]),
+        name: pick.slice(2).join(':'), kind: pick[0], qty: qty,
+        is_cost: false, note: '', sort: (DB.lootFor(runKey).length + 1) * 10,
+        by_user: ZGATE.user() || ''
+      });
+      $('newLootQty').value = '1';
+      renderLootTable(); render();
+    };
+
     $('btnAddRun').onclick = function () {
       var label = $('newRunLabel').value.trim();
       var sec = U.parseDur($('newRunDur').value);

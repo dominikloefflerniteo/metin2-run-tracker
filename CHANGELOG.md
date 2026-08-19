@@ -3,6 +3,23 @@
 Neuestes zuerst. Die oberste Nummer muss mit `version.js` übereinstimmen —
 der Smoketest prüft das.
 
+## 0.8.0 — 2026-08-20
+Was ein Run wert ist
+
+- **Wert pro Run und Yang/h** im Spaltenkopf und in der neuen Seitenspalte
+  **Was lohnt sich** — Runs nach Stundenwert sortiert. Der Tooltip schlüsselt
+  auf, welche Truhe wie viel beiträgt.
+- **Laufzeit je Run** in den Einstellungen neben dem Cooldown. Wer genug
+  Charaktere hat, wartet nie auf einen Cooldown — dann ist die eigene Zeit der
+  Engpass, und genau darauf rechnet die Seite dann Yang/h. Ohne Eintrag bleibt
+  es beim Cooldown.
+- **Run-Beute** in den Einstellungen: welche Truhe ein Run im Schnitt abwirft
+  (Menge darf krumm sein), Kosten-Haken für Schlüssel und Eintritt.
+- Preise kommen aus Supabase (`chest_values`, `item_prices`), befüllt vom
+  Push-Job in metin-bazar-pro auf Dominiks PC. **Das Alter der Preise steht
+  immer dabei** — grün unter 30 min, gelb unter 2 h, danach rot.
+- Neu: `sql/2026-08-19_prices.sql` (drei Tabellen + `run_types.run_seconds`).
+
 ## 0.7.0 — 2026-08-18
 Notizen, Account, Gruppierung nach Login
 

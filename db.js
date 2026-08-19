@@ -19,7 +19,10 @@
   var CRED_KEY  = 'm2rt.supabase.v1';
   var CACHE_KEY = 'm2rt.cache.v1';
 
-  var TABLES = ['chars', 'timers', 'run_types', 'channels', 'spawns'];
+  /* chest_values / item_prices werden NUR gelesen — sie kommen vom Push-Job
+     auf Dominiks PC (metin-bazar-pro). run_loot ist wieder beidseitig. */
+  var TABLES = ['chars', 'timers', 'run_types', 'channels', 'spawns',
+                'chest_values', 'item_prices', 'run_loot'];
 
   var DEFAULT_RUN_TYPES = [
     { key: 'hydra',  label: 'Hydra',     seconds: 20 * 60,   from_start: true,  color: '#e0574f', sort: 10, enabled: true },
@@ -33,7 +36,8 @@
   var DB = window.DB = {
     connected: false,
     creds: U.store.get(CRED_KEY, { url: '', key: '' }),
-    data: { chars: [], timers: [], run_types: DEFAULT_RUN_TYPES.slice(), channels: [], spawns: [] },
+    data: { chars: [], timers: [], run_types: DEFAULT_RUN_TYPES.slice(), channels: [], spawns: [],
+            chest_values: [], item_prices: [], run_loot: [] },
     status: { state: 'off', text: 'nur lokal' },
     DEFAULT_RUN_TYPES: DEFAULT_RUN_TYPES
   };
@@ -61,6 +65,9 @@
     if (cached && cached.chars) {
       DB.data = cached;
       if (!DB.data.spawns) DB.data.spawns = [];   // aelterer Zwischenspeicher
+      ['chest_values', 'item_prices', 'run_loot'].forEach(function (t) {
+        if (!DB.data[t]) DB.data[t] = [];
+      });
       if (!DB.data.run_types || !DB.data.run_types.length) {
         DB.data.run_types = DEFAULT_RUN_TYPES.slice();
       }
@@ -312,6 +319,25 @@
     return DB.data.spawns.slice().sort(function (a, b) {
       return (a.sort || 0) - (b.sort || 0) || String(a.label).localeCompare(String(b.label));
     });
+  };
+
+  /* Run-Beute: was ein Run im Schnitt abwirft. Das weiss keine API, das
+     tragen wir selbst ein — deshalb schreibbar. */
+  DB.saveRunLoot = function (row) {
+    row.updated_at = new Date().toISOString();
+    return push('run_loot', row, 'id', ['id']);
+  };
+
+  DB.deleteRunLoot = function (id) {
+    localDelete('run_loot', { id: id });
+    if (!client) return Promise.resolve(true);
+    return client.from('run_loot').delete().eq('id', id).then(function () { return true; });
+  };
+
+  DB.lootFor = function (runKey) {
+    return DB.data.run_loot
+      .filter(function (r) { return r.run_key === runKey; })
+      .sort(function (a, b) { return (a.sort || 0) - (b.sort || 0); });
   };
 
   DB.saveRunType = function (rt) {
