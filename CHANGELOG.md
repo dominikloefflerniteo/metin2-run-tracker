@@ -18,7 +18,15 @@ Was ein Run wert ist
 - Preise kommen aus Supabase (`chest_values`, `item_prices`), befüllt vom
   Push-Job in metin-bazar-pro auf Dominiks PC. **Das Alter der Preise steht
   immer dabei** — grün unter 30 min, gelb unter 2 h, danach rot.
-- Neu: `sql/2026-08-19_prices.sql` (drei Tabellen + `run_types.run_seconds`).
+- **Aufschlüsselung** hinter dem `?` im Spaltenkopf (oder Klick in der
+  Seitenspalte): Truhen pro Run, und je Truhe **jeder** mögliche Drop mit Rate,
+  Stückpreis und Beitrag — dazu **Marktpreis gegen Erwartungswert** samt Fazit
+  *öffnen* oder *verkaufen*.
+- **Preise von Hand setzen**, direkt in der Aufschlüsselung. Nötig für alles,
+  was nicht handelbar ist (Segenskugel, Blutstein) und deshalb nie einen
+  Marktpreis hat. Gilt für alle, wirkt sofort — der Erwartungswert wird im
+  Browser aus den Drops nachgerechnet, nicht erst beim nächsten Push.
+- Neu: `sql/2026-08-19_prices.sql` (vier Tabellen + `run_types.run_seconds`).
 
 ## 0.7.0 — 2026-08-18
 Notizen, Account, Gruppierung nach Login

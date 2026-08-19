@@ -349,6 +349,39 @@ async function main() {
   ok($('valAge').className.indexOf('age-fresh') !== -1, 'frische Preise werden gruen markiert');
   ok(doc.querySelector('#gridHead .run-val') !== null, 'der Wert steht auch im Spaltenkopf');
 
+  console.log('\n[Aufschlüsselung]');
+  // Truhe mit Drops, damit es etwas aufzuschluesseln gibt: 10 % auf ein Item
+  // zu 50 Mio plus ein unverkaeufliches, das mit 0 zaehlt.
+  DB.data.chest_values[0].drops = [
+    { vnum: 111, name: 'Teuer', qty: 1, rate: 10, unit: 50000000, ev: 5000000, priced: true, untradeable: false },
+    { vnum: 222, name: 'Unverkäuflich', qty: 2, rate: 5, unit: 0, ev: 0, priced: false, untradeable: true }
+  ];
+  DB.data.chest_values[0].openings = 1;
+  ok(window.PRICES.chestEV(DB.data.chest_values[0]) === 5000000,
+     'Erwartungswert wird aus den Drops nachgerechnet: ' + window.PRICES.fmt(5000000));
+
+  click(doc.querySelector('#gridHead .valinfo'));
+  ok($('valueDlg').hidden === false, 'der Knopf im Spaltenkopf öffnet die Aufschlüsselung');
+  ok($('vdBody').textContent.indexOf('Unverkäuflich') !== -1, 'auch Drops ohne Preis stehen drin');
+  ok($('vdBody').textContent.indexOf('Marktpreis') !== -1, 'Marktpreis der Truhe zum Vergleich');
+  ok($('vdBody').textContent.indexOf('verkaufen') !== -1,
+     'und ein Fazit (9 Mio Kauf gegen 5 Mio Erwartungswert -> verkaufen)');
+
+  // Preis von Hand setzen: wirkt sofort, ohne auf den naechsten Push zu warten.
+  const inputs = [...$('vdBody').querySelectorAll('input')];
+  const unverk = inputs[inputs.length - 1];
+  unverk.value = '10 Mio';
+  unverk.dispatchEvent(new window.Event('change', { bubbles: true }));
+  ok(DB.data.price_overrides.length === 1, 'Überschreibung gespeichert');
+  ok(window.PRICES.override(222) === 10000000, 'und wird gefunden: ' + window.PRICES.fmt(10000000));
+  ok(window.PRICES.chestEV(DB.data.chest_values[0]) === 6000000,
+     'der Erwartungswert steigt sofort (2 × 10 Mio × 5 %): ' + window.PRICES.fmt(window.PRICES.chestEV(DB.data.chest_values[0])));
+
+  DB.setPriceOverride(222, 0);
+  ok(DB.data.price_overrides.length === 0, 'leeres Feld nimmt die Überschreibung wieder zurück');
+  click($('vdClose'));
+  ok($('valueDlg').hidden === true, 'Fenster schließt');
+
   console.log('\n[Gate]');
   const dom2 = new JSDOM(html, { runScripts: 'outside-only', url: 'http://localhost/' });
   dom2.window.eval(fs.readFileSync(path.join(__dirname, 'gate.js'), 'utf8'));

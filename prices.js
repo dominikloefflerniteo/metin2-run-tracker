@@ -69,6 +69,52 @@
     return DB.data.item_prices.find(function (c) { return Number(c.vnum) === Number(vnum); }) || null;
   }
 
+  /* Von Hand gesetzter Preis, falls vorhanden. Dafuer gibt es zwei Gruende:
+     Untradeables haben nie einen Marktpreis (stehen also auf 0), und manchmal
+     weiss man es einfach besser als der Markt-Schnitt. Gilt fuer alle. */
+  P.override = function (vnum) {
+    var o = (DB.data.price_overrides || []).find(function (r) {
+      return Number(r.vnum) === Number(vnum);
+    });
+    return o && Number(o.price) > 0 ? Number(o.price) : null;
+  };
+
+  /* Erwartungswert einer Truhe, aus ihren Drops NACHGERECHNET — damit ein von
+     Hand gesetzter Preis sofort wirkt und nicht erst beim naechsten Push.
+     Ohne Drop-Liste bleibt der gepushte Wert stehen. */
+  P.chestEV = function (c) {
+    if (!c) return 0;
+    if (!Array.isArray(c.drops) || !c.drops.length) return Number(c.expected_value) || 0;
+    var openings = Number(c.openings) || 1;
+    var sum = 0;
+    c.drops.forEach(function (d) {
+      var unit = P.override(d.vnum);
+      if (unit === null) unit = Number(d.unit) || 0;
+      sum += unit * (Number(d.qty) || 0) * ((Number(d.rate) || 0) / 100) * openings;
+    });
+    return sum;
+  };
+
+  /* Dieselbe Aufschluesselung, aber mit Ueberschreibungen und sortiert. */
+  P.chestBreakdown = function (c) {
+    if (!c || !Array.isArray(c.drops)) return [];
+    var openings = Number(c.openings) || 1;
+    return c.drops.map(function (d) {
+      var ov = P.override(d.vnum);
+      var unit = ov === null ? (Number(d.unit) || 0) : ov;
+      return {
+        vnum: d.vnum,
+        name: d.name,
+        qty: Number(d.qty) || 0,
+        rate: Number(d.rate) || 0,
+        unit: unit,
+        manual: ov !== null,
+        untradeable: !!d.untradeable,
+        ev: unit * (Number(d.qty) || 0) * ((Number(d.rate) || 0) / 100) * openings
+      };
+    }).sort(function (a, b) { return b.ev - a.ev; });
+  };
+
   /* Sekunden seit dem juengsten Preis-Zeitstempel; null = noch keine Preise. */
   P.age = function () {
     var newest = 0;
@@ -105,8 +151,12 @@
       var isFixed = l.kind === 'fixed';
       var isItem = l.kind === 'item';
       var src = isFixed ? null : (isItem ? item(l.vnum) : chest(l.vnum));
-      var unit = isFixed ? Number(l.qty) || 0
-                         : (src ? Number(isItem ? src.price : src.expected_value) : 0);
+      var unit;
+      if (isFixed) unit = Number(l.qty) || 0;
+      else if (isItem) {
+        var ov = P.override(l.vnum);
+        unit = ov !== null ? ov : (src ? Number(src.price) : 0);
+      } else unit = P.chestEV(src);
       if (!isFixed && (!src || !unit)) missing++;
 
       var qty = isFixed ? 1 : (Number(l.qty) || 0);

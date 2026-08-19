@@ -77,6 +77,22 @@ create table if not exists public.run_loot (
 );
 create index if not exists run_loot_run_idx on public.run_loot (run_key);
 
+-- ------------------------------------------------ Preise von Hand
+-- Alles, was nicht handelbar ist (Segenskugel, Blutstein, Tapferkeitsumhang),
+-- hat nie einen Marktpreis und zaehlt sonst mit 0. Hier kann jeder einen Wert
+-- setzen; der Browser rechnet den Erwartungswert dann selbst nach, damit die
+-- Aenderung nicht erst beim naechsten Push wirkt.
+create table if not exists public.price_overrides (
+  server     text not null default '[DIA] Blos',
+  vnum       int  not null,
+  name       text not null default '',
+  price      bigint not null default 0,
+  note       text not null default '',
+  by_user    text not null default '',
+  updated_at timestamptz not null default now(),
+  primary key (server, vnum)
+);
+
 -- ------------------------------------------------- Laufzeit je Run
 -- `seconds` ist der Cooldown (wann der Run wieder GEHT). Das hier ist die
 -- Zeit, die der Run tatsaechlich KOSTET. Wer genug Charaktere hat, wartet nie
@@ -87,14 +103,17 @@ alter table public.run_types add column if not exists run_seconds int not null d
 -- ------------------------------------------------------------------ RLS
 -- Gleiches Modell wie der Rest: anon darf alles, der Schutz ist der Key.
 alter table public.chest_values enable row level security;
+alter table public.price_overrides enable row level security;
 alter table public.item_prices  enable row level security;
 alter table public.run_loot     enable row level security;
 
 drop policy if exists chest_values_all on public.chest_values;
+drop policy if exists price_overrides_all on public.price_overrides;
 drop policy if exists item_prices_all  on public.item_prices;
 drop policy if exists run_loot_all     on public.run_loot;
 
 create policy chest_values_all on public.chest_values for all to anon using (true) with check (true);
+create policy price_overrides_all on public.price_overrides for all to anon using (true) with check (true);
 create policy item_prices_all  on public.item_prices  for all to anon using (true) with check (true);
 create policy run_loot_all     on public.run_loot     for all to anon using (true) with check (true);
 
@@ -102,7 +121,7 @@ create policy run_loot_all     on public.run_loot     for all to anon using (tru
 do $$
 declare t text;
 begin
-  foreach t in array array['chest_values','item_prices','run_loot'] loop
+  foreach t in array array['chest_values','item_prices','run_loot','price_overrides'] loop
     if not exists (
       select 1 from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t

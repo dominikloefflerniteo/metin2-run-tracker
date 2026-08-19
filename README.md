@@ -162,6 +162,15 @@ Beute-Arten: **Truhe** (Erwartungswert), **Item** (Marktpreis) und
 dort ist die eingetragene Zahl direkt der Wert, `3,5 Won` wird verstanden.
 Der Haken **Kosten** zieht eine Position ab (Schlüssel, Eintritt, Verbrauch).
 
+Das `?` im Spaltenkopf (oder ein Klick in der Seitenspalte) öffnet die
+**Aufschlüsselung**: Truhen pro Run, und je Truhe jeder mögliche Drop mit Rate,
+Stückpreis und Beitrag — plus **Marktpreis gegen Erwartungswert** mit Fazit
+*öffnen* oder *verkaufen*. Jeder Stückpreis lässt sich dort **von Hand setzen**
+(`price_overrides`, gilt für alle): nötig für alles, was nicht handelbar ist —
+Segenskugel, Blutstein, Tapferkeitsumhang haben nie einen Marktpreis und zählen
+sonst mit 0. Der Erwartungswert wird im Browser aus den Drops nachgerechnet, die
+Änderung wirkt also sofort. Ein leeres Feld nimmt sie zurück.
+
 **Preise altern.** Sie entstehen auf dem PC, der `metin-bazar-pro` laufen lässt
 (Playwright-Scraper + eigene Preishistorie, Push nach jedem Poll). Läuft der
 nicht, stehen die Zahlen still — deshalb steht das Alter immer daneben:
