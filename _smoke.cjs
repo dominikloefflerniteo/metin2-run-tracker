@@ -325,20 +325,26 @@ async function main() {
   ok(Math.round(nem2.perHourActive) === 534000000, '20 min Laufzeit -> ' + window.PRICES.fmtShort(nem2.perHourActive) + '/h');
   ok(window.PRICES.ranking()[0].runKey === 'nemere', 'Rangliste fuehrt Nemere');
 
+  // Pauschale: fuer Runs ohne handelbare Truhe (Meley) ist die Menge der Wert.
+  DB.data.run_loot.push({ id: 'l3', run_key: 'meley', vnum: 0, name: 'Pauschal 3,5 Won',
+                          kind: 'fixed', qty: 3.5 * WON, is_cost: false, sort: 10 });
+  const mel = window.PRICES.valueFor('meley');
+  ok(mel.perRun === 350000000, 'Pauschale zaehlt direkt: ' + window.PRICES.fmt(mel.perRun));
+  ok(mel.missing === 0, 'und gilt nicht als fehlender Preis');
+  ok(window.PRICES.parseYang('3,5 Won') === 350000000, '"3,5 Won" wird verstanden');
+  ok(window.PRICES.parseYang('20 Mio') === 20000000, '"20 Mio" auch');
+  ok(window.PRICES.parseYang('quatsch') === 0, 'Unsinn ergibt 0');
+
   ok(window.PRICES.fmt(1.21 * WON).indexOf('Won') !== -1, 'ab 100 Mio wird in Won angezeigt: ' + window.PRICES.fmt(1.21 * WON));
   ok(window.PRICES.fmt(4952511).indexOf('Yang') !== -1, 'darunter in Yang: ' + window.PRICES.fmt(4952511));
   ok(window.PRICES.ageClass(60) === 'fresh' && window.PRICES.ageClass(3600) === 'ok' &&
      window.PRICES.ageClass(99999) === 'stale' && window.PRICES.ageClass(null) === 'none',
      'Alter der Preise wird eingestuft');
 
-  DB.data.chars.length && click($('btnAddChar'));   // Dialog wieder schliessen, falls offen
-  $('charDlg').hidden = true;
-  window.eval('render && render()');
-  DB.onChange && DB.data && (function () { /* Neuzeichnen ueber den normalen Weg */ })();
-  click($('btnCloseSettings'));
-  $('filter').dispatchEvent(new window.Event('input', { bubbles: true }));  // loest render() aus
+  // Neuzeichnen ueber den normalen Weg: die Filtereingabe ruft render() auf.
+  $('filter').dispatchEvent(new window.Event('input', { bubbles: true }));
   ok(!$('valueBlock').hidden, 'Seitenspalte "Was lohnt sich" ist sichtbar');
-  ok($('valList').children.length === 1, 'ein Run mit Beute in der Liste');
+  ok($('valList').children.length === 2, 'zwei Runs mit Beute in der Liste');
   ok($('valList').textContent.indexOf('Nemere') !== -1, 'und zwar Nemere');
   ok($('valAge').className.indexOf('age-fresh') !== -1, 'frische Preise werden gruen markiert');
   ok(doc.querySelector('#gridHead .run-val') !== null, 'der Wert steht auch im Spaltenkopf');

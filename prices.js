@@ -45,6 +45,23 @@
     return (neg ? '−' : '') + s;
   };
 
+  /* "3,5 Won" / "20 Mio" / "350000000" / "740k" -> Yang. 0 bei Unsinn.
+     Gegenstueck zu fmt/fmtShort, damit man Pauschalen so eintippen kann, wie
+     sie angezeigt werden. */
+  P.parseYang = function (s) {
+    s = String(s || '').trim().toLowerCase().replace(/\./g, '').replace(',', '.');
+    var m = /^([0-9]*\.?[0-9]+)\s*(won|mio|mrd|k)?$/.exec(s);
+    if (!m) return 0;
+    var n = parseFloat(m[1]);
+    if (!isFinite(n)) return 0;
+    var u = m[2];
+    if (u === 'won') n *= WON;
+    else if (u === 'mrd') n *= 1000000000;
+    else if (u === 'mio') n *= 1000000;
+    else if (u === 'k') n *= 1000;
+    return Math.round(n);
+  };
+
   function chest(vnum) {
     return DB.data.chest_values.find(function (c) { return Number(c.vnum) === Number(vnum); }) || null;
   }
@@ -82,12 +99,17 @@
     var parts = [];
 
     loot.forEach(function (l) {
+      // 'fixed' = Pauschale: die Menge IST der Wert in Yang. Fuer Runs, deren
+      // Ertrag nicht aus einer Truhe kommt (Meley) und den man aus Erfahrung
+      // kennt — Marktpreise gibt es dafuer nicht.
+      var isFixed = l.kind === 'fixed';
       var isItem = l.kind === 'item';
-      var src = isItem ? item(l.vnum) : chest(l.vnum);
-      var unit = src ? Number(isItem ? src.price : src.expected_value) : 0;
-      if (!src || !unit) missing++;
+      var src = isFixed ? null : (isItem ? item(l.vnum) : chest(l.vnum));
+      var unit = isFixed ? Number(l.qty) || 0
+                         : (src ? Number(isItem ? src.price : src.expected_value) : 0);
+      if (!isFixed && (!src || !unit)) missing++;
 
-      var qty = Number(l.qty) || 0;
+      var qty = isFixed ? 1 : (Number(l.qty) || 0);
       var value = unit * qty;
       if (l.is_cost) cost += value; else gain += value;
 
@@ -100,7 +122,8 @@
         unit: unit,
         value: value,
         note: l.note || '',
-        known: !!(src && unit)
+        fixed: isFixed,
+        known: isFixed ? unit > 0 : !!(src && unit)
       });
     });
 

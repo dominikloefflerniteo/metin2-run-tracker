@@ -75,7 +75,8 @@ füreinander ein.
 **bereits angelegten** Datenbank zusätzlich `sql/2026-08-18_registration.sql`
 (Anmeldung), `sql/2026-08-18_spawns.sql` (eigene Spawns) und
 `sql/2026-08-18_login.sql` (Login je Charakter) und
-`sql/2026-08-18_account.sql` (Account) — alle wiederholbar. Das Skript ist
+`sql/2026-08-18_account.sql` (Account) und `sql/2026-08-19_prices.sql`
+(Truhenwerte + Run-Beute + `run_types.run_seconds`) — alle wiederholbar. Das Skript ist
 wiederholbar, ein zweiter Lauf schadet nicht. Es legt vier Tabellen an
 (`chars`, `timers`, `run_types`, `channels`), setzt RLS auf „anon darf alles"
 und schaltet Realtime ein.
@@ -133,6 +134,44 @@ Beobachtet: der Cluster wird gemeinsam neu gestartet (Chimera und Germania
 haben dieselben Minuten), aber einzelne Channels starten auch für sich neu
 (Tigerghost CH2, Teutonia CH2) — deshalb rechnet jeder Channel mit seinem
 eigenen Takt.
+
+## Was ein Run wert ist
+
+Über jeder Run-Spalte steht, was der Run einbringt, und in der Seitenspalte
+stehen alle Runs nach Stundenwert sortiert (**Was lohnt sich**). Drei Zutaten:
+
+| Woher | Was |
+|---|---|
+| `chest_values` / `item_prices` | Erwartungswert je Truhe bzw. Marktpreis je Item |
+| `run_loot` | wie viele davon ein Run im Schnitt abwirft (Einstellungen → **Run-Beute**) |
+| `run_types` | `seconds` = Cooldown, `run_seconds` = **Laufzeit** des Runs |
+
+```
+Wert/Run  =  Σ Menge × Wert  −  Σ Kosten
+Yang/h    =  Wert/Run ÷ Laufzeit      (fett — die eigene Stunde)
+             Wert/Run ÷ Cooldown      (klein daneben, „/h CD")
+```
+
+Ohne eingetragene Laufzeit wird über den Cooldown gerechnet. Der Unterschied
+ist keine Kosmetik: wer genug Charaktere hat, wartet nie auf einen Cooldown —
+dann ist die eigene Zeit der Engpass, und nur die Laufzeit-Rechnung beantwortet
+„was mache ich in der nächsten Stunde".
+
+Beute-Arten: **Truhe** (Erwartungswert), **Item** (Marktpreis) und
+**Pauschale** — für Runs, deren Ertrag nicht über den Markt läuft (Meley);
+dort ist die eingetragene Zahl direkt der Wert, `3,5 Won` wird verstanden.
+Der Haken **Kosten** zieht eine Position ab (Schlüssel, Eintritt, Verbrauch).
+
+**Preise altern.** Sie entstehen auf dem PC, der `metin-bazar-pro` laufen lässt
+(Playwright-Scraper + eigene Preishistorie, Push nach jedem Poll). Läuft der
+nicht, stehen die Zahlen still — deshalb steht das Alter immer daneben:
+grün < 30 min, gelb < 2 h, danach rot.
+
+Warum nicht direkt aus dem Browser: metin2alerts schickt keinen CORS-Header,
+prüft Origin/Referer, signiert jeden Request in der Seite selbst und antwortet
+in Protobuf. Dazu braucht der Erwartungswert den 7-Tage-Schnitt aus einer
+Preishistorie, die nur lokal existiert. Gleiches Muster wie bei g-status, nur
+mit PC statt GitHub-Actions-Cron.
 
 ## Cooldown-Vorgaben
 

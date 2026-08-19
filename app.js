@@ -606,22 +606,33 @@
         tr.appendChild(U.el('td', null, runs[l.run_key] || l.run_key));
         tr.appendChild(U.el('td', null, l.name || ('vnum ' + l.vnum)));
 
+        var fixed = l.kind === 'fixed';
+
         var tdQ = U.el('td');
         var inQ = U.el('input', 'txt small');
-        inQ.value = String(l.qty).replace('.', ',');
+        // Bei einer Pauschale IST die Menge der Wert — dann auch so anzeigen
+        // und "3,5 Won" beim Tippen verstehen.
+        inQ.value = fixed ? PRICES.fmtShort(l.qty) : String(l.qty).replace('.', ',');
+        inQ.title = fixed ? 'Wert pro Run — "3,5 Won", "20 Mio" oder die nackte Zahl' : '';
         inQ.onchange = function () {
-          var n = parseFloat(String(inQ.value).replace(',', '.'));
-          if (!isFinite(n) || n < 0) { inQ.value = String(l.qty).replace('.', ','); return; }
-          l.qty = n; DB.saveRunLoot(l); renderLootTable(); render();
+          var n = fixed ? PRICES.parseYang(inQ.value)
+                        : parseFloat(String(inQ.value).replace(',', '.'));
+          if (!isFinite(n) || n <= 0) {
+            inQ.value = fixed ? PRICES.fmtShort(l.qty) : String(l.qty).replace('.', ',');
+            return;
+          }
+          l.qty = n; DB.saveRunLoot(l);
+          renderLootTable(); render();
         };
         tdQ.appendChild(inQ); tr.appendChild(tdQ);
 
         // Was diese eine Position beisteuert — sonst raet man beim Eintragen.
-        var src = l.kind === 'item'
+        var src = fixed ? null : (l.kind === 'item'
           ? DB.data.item_prices.find(function (p) { return Number(p.vnum) === Number(l.vnum); })
-          : DB.data.chest_values.find(function (p) { return Number(p.vnum) === Number(l.vnum); });
-        var unit = src ? Number(l.kind === 'item' ? src.price : src.expected_value) : 0;
-        tr.appendChild(U.el('td', 'dim', unit ? PRICES.fmtShort(unit * Number(l.qty)) : '—'));
+          : DB.data.chest_values.find(function (p) { return Number(p.vnum) === Number(l.vnum); }));
+        var total = fixed ? Number(l.qty)
+                          : (src ? Number(l.kind === 'item' ? src.price : src.expected_value) * Number(l.qty) : 0);
+        tr.appendChild(U.el('td', 'dim', total ? PRICES.fmtShort(total) : '—'));
 
         var tdC = U.el('td');
         var cb = U.el('input');
@@ -650,6 +661,11 @@
 
     var selC = $('newLootChest');
     selC.innerHTML = '';
+    // Pauschale zuerst: fuer Runs, deren Ertrag nicht aus einer handelbaren
+    // Truhe kommt (Meley) — dann ist die "Menge" der Wert.
+    var oFix = U.el('option', null, 'Pauschale (Wert eintragen)');
+    oFix.value = 'fixed:0:Pauschale';
+    selC.appendChild(oFix);
     DB.data.chest_values.slice()
       .sort(function (a, b) { return Number(b.expected_value) - Number(a.expected_value); })
       .forEach(function (c) {
@@ -934,7 +950,9 @@
     $('btnAddLoot').onclick = function () {
       var runKey = $('newLootRun').value;
       var pick = String($('newLootChest').value || '').split(':');
-      var qty = parseFloat(String($('newLootQty').value).replace(',', '.'));
+      var qty = pick[0] === 'fixed'
+        ? PRICES.parseYang($('newLootQty').value)      // Pauschale: die Menge ist der Wert
+        : parseFloat(String($('newLootQty').value).replace(',', '.'));
       if (!runKey || pick.length < 3 || !isFinite(qty) || qty <= 0) return;
       DB.saveRunLoot({
         id: U.uuid(), run_key: runKey, vnum: Number(pick[1]),
