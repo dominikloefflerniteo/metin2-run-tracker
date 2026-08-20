@@ -11,9 +11,10 @@ Reiter Bazar: was ein Run wert ist, und ob sich Alchemie lohnt
   Erwartungswert mit Fazit *öffnen* / *verkaufen*) und **Alchemie**.
 - **Alchemie**: alle sechs Drachensteine über alle Stufen mit Marktpreis,
   dazu je Stufe was der Aufstieg kostet und was er bringt. Grundlage sind die
-  Erfolgsraten aus metin-bazar-pro — 50 % mit einem Stein zurück im Fehlschlag
-  heißt im Schnitt **drei Steine je Stufe**, bei den Mythisch-Unterstufen
-  70 % (≈ 1,43). Oben steht das beste Geschäft über alle Steine.
+  Erfolgsraten aus dem Spiel. Ein Versuch verbraucht **zwei** Steine, im
+  Fehlschlag kommt einer zurück — erwarteter Verbrauch je Stufe ist also
+  `2 + (1−p)/p`: bei 50 % **drei** Steine, bei den Mythisch-Unterstufen (70 %)
+  **2,43**. Oben steht das beste Geschäft über alle Steine.
 - **Wert pro Run und Yang/h** im Spaltenkopf der Runs-Tabelle. Der Tooltip
   schlüsselt auf, welche Truhe wie viel beiträgt; das `?` öffnet die
   Aufschlüsselung.
@@ -41,7 +42,7 @@ Reiter Bazar: was ein Run wert ist, und ob sich Alchemie lohnt
   was nicht handelbar ist (Segenskugel, Blutstein) und deshalb nie einen
   Marktpreis hat. Gilt für alle, wirkt sofort — der Erwartungswert wird im
   Browser aus den Drops nachgerechnet, nicht erst beim nächsten Push.
-- Neu: `sql/2026-08-19_prices.sql` (vier Tabellen + `run_types.run_seconds`).
+- Neu: `sql/2026-08-19_prices.sql` (fünf Tabellen + `run_types.run_seconds`).
 
 ## 0.7.0 — 2026-08-18
 Notizen, Account, Gruppierung nach Login

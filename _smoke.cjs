@@ -368,8 +368,9 @@ async function main() {
   ok(stones[0].steps[0].cost === 30000000, 'Aufstieg kostet 3 Steine: ' + window.PRICES.fmt(30000000));
   ok(stones[0].steps[0].profit === 10000000, 'und bringt 10 Mio Gewinn');
   ok(stones[0].steps[1].profit === -20000000, 'der naechste lohnt nicht (3 × 40 > 100)');
-  ok(Math.round(stones[0].steps[2].cost) === 142857143,
-     'zwischen Mythisch-Stufen gilt 1,43 statt 3: ' + window.PRICES.fmt(stones[0].steps[2].cost));
+  ok(Math.round(stones[0].steps[2].cost) === 242857143,
+     'zwischen Mythisch-Stufen gilt 2,43 statt 3 (2 + 0,3/0,7): ' + window.PRICES.fmt(stones[0].steps[2].cost));
+  ok(window.PRICES.factorFor(0.5) === 3, 'die Formel gibt bei 50 % genau 3 Steine');
   const best = window.PRICES.bestUpgrade();
   ok(best && best.step.from.name === 'Antiker', 'bester Aufstieg wird gefunden: ' + (best && best.step.from.name));
 

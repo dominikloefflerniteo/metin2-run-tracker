@@ -76,7 +76,7 @@ füreinander ein.
 (Anmeldung), `sql/2026-08-18_spawns.sql` (eigene Spawns) und
 `sql/2026-08-18_login.sql` (Login je Charakter) und
 `sql/2026-08-18_account.sql` (Account) und `sql/2026-08-19_prices.sql`
-(Truhenwerte + Run-Beute + `run_types.run_seconds`) — alle wiederholbar. Das Skript ist
+(Truhenwerte, Run-Beute, Alchemie + `run_types.run_seconds`) — alle wiederholbar. Das Skript ist
 wiederholbar, ein zweiter Lauf schadet nicht. Es legt vier Tabellen an
 (`chars`, `timers`, `run_types`, `channels`), setzt RLS auf „anon darf alles"
 und schaltet Realtime ein.
@@ -181,6 +181,23 @@ steht in der Datenbank und gilt für alle, nicht nur im eigenen Browser.
 (Playwright-Scraper + eigene Preishistorie, Push nach jedem Poll). Läuft der
 nicht, stehen die Zahlen still — deshalb steht das Alter immer daneben:
 grün < 30 min, gelb < 2 h, danach rot.
+
+### Alchemie
+
+Unter **Bazar → Alchemie** stehen alle sechs Drachensteine über alle Stufen
+(Roher … Legendär, Mythisch Matt … Excellent) mit ihrem Marktpreis, und je
+Stufe, was der Aufstieg kostet und was er bringt.
+
+Ein Versuch verbraucht **zwei** Steine und gelingt zu **50 %**; im Fehlschlag
+kommt einer zurück. Erwarteter Verbrauch je gewonnener Stufe ist damit
+`2 + (1−p)/p` — bei 50 % sind das **3,00** Steine, zwischen den
+Mythisch-Unterstufen (**70 %**) **2,43**. (Nicht `1/p`: das zählt nur die
+Versuche und unterschlägt den zweiten Stein pro Versuch.) Grün heißt: die nächste Stufe ist mehr wert als
+das, was man hineinsteckt. Die Raten gehören zum Spiel und stehen im Code
+(`prices.js`), sie stammen aus metin-bazar-pro.
+
+Unterhalb von *Antiker* gibt es meist keine Preise — die Stufen sind nicht
+handelbar, tauchen also nie im Bazar auf.
 
 Warum nicht direkt aus dem Browser: metin2alerts schickt keinen CORS-Header,
 prüft Origin/Referer, signiert jeden Request in der Seite selbst und antwortet

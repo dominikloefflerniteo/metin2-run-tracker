@@ -243,17 +243,26 @@
 
   /* ====================================================== Drachensteine
    *
-   * Aufstieg heisst: mehrere Steine einer Stufe zu einem der naechsten
-   * verschmelzen. Bei 50 % Erfolg und einem Stein zurueck im Fehlschlag
-   * braucht man im Schnitt DREI. Die Mythisch-Unterstufen gehen mit 70 %,
-   * also ~1,43. Lohnt sich, wenn die naechste Stufe mehr wert ist als das,
-   * was man dafuer hineinsteckt.
+   * Ein Aufstieg verbraucht ZWEI Steine, im Fehlschlag kommt EINER zurueck.
+   * Erwarteter Verbrauch je gewonnener Stufe:
    *
-   * Die Raten stammen aus metin-bazar-pro (src/app/alchemy/page.tsx) und
-   * gelten fuers Spiel, nicht fuer den Server — sie stehen hier fest.
+   *     2 + (1 - p) / p        p = Erfolgswahrscheinlichkeit
+   *
+   *   p = 0,50  ->  2 + 1,0000  =  3,00 Steine
+   *   p = 0,70  ->  2 + 0,4286  =  2,43 Steine
+   *
+   * NICHT 1/p — das zaehlt nur die Versuche und unterschlaegt, dass jeder
+   * Versuch zwei Steine frisst. (Genau der Fehler stand bis 2026-08-20 in
+   * metin-bazar-pro und hat die Mythisch-Aufstiege fast doppelt so
+   * lohnend aussehen lassen, wie sie sind.)
+   *
+   * Die Raten gehoeren zum Spiel, nicht zum Server — sie stehen hier fest.
    */
-  P.UPGRADE_FACTOR = 3;             // 50 % Erfolg, 1 zurueck bei Fehlschlag
-  P.MYTHISCH_FACTOR = 1 / 0.7;      // ~1,43
+  P.RATE_BASE = 0.5;                // Roher bis Legendaer -> Mythisch
+  P.RATE_MYTHISCH = 0.7;            // zwischen den Mythisch-Unterstufen
+  P.factorFor = function (p) { return 2 + (1 - p) / p; };
+  P.UPGRADE_FACTOR = P.factorFor(P.RATE_BASE);       // 3,00
+  P.MYTHISCH_FACTOR = P.factorFor(P.RATE_MYTHISCH);  // 2,4286
 
   /* Alle Steine, jeder mit seinen Stufen in Aufstiegsreihenfolge. */
   P.stones = function () {
