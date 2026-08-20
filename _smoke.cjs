@@ -343,10 +343,12 @@ async function main() {
 
   // Neuzeichnen ueber den normalen Weg: die Filtereingabe ruft render() auf.
   $('filter').dispatchEvent(new window.Event('input', { bubbles: true }));
-  ok(!$('valueBlock').hidden, 'Seitenspalte "Was lohnt sich" ist sichtbar');
-  ok($('valList').children.length === 2, 'zwei Runs mit Beute in der Liste');
-  ok($('valList').textContent.indexOf('Nemere') !== -1, 'und zwar Nemere');
-  ok($('valAge').className.indexOf('age-fresh') !== -1, 'frische Preise werden gruen markiert');
+  click(doc.querySelector('#tabs .tab[data-view="bazar"]'));
+  ok(!$('viewBazar').hidden && $('viewRuns').hidden, 'der Reiter Bazar schaltet die Ansicht um');
+  ok($('bzBody').textContent.indexOf('Was lohnt sich') !== -1, 'dort steht die Rangliste');
+  ok($('bzBody').textContent.indexOf('Nemere') !== -1, 'mit Nemere');
+  ok($('bzBody').textContent.indexOf('Truhen') !== -1, 'dazu die Truhen-Uebersicht');
+  ok($('bzAge').className.indexOf('age-fresh') !== -1, 'frische Preise werden gruen markiert');
   ok(doc.querySelector('#gridHead .run-val') !== null, 'der Wert steht auch im Spaltenkopf');
 
   console.log('\n[Aufschlüsselung]');

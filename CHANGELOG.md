@@ -26,6 +26,9 @@ Was ein Run wert ist
   zweimal mit 0,89 % in der Nemere-Truhe), wird es in der Anzeige zu einer
   Zeile mit addierter Rate zusammengefasst und mit `*` markiert. An der
   Rechnung ändert das nichts — 2 × 0,89 % ist dasselbe wie 1 × 1,78 %.
+- Spalte **zählt**: Haken raus, und der Drop fällt ganz aus der Rechnung —
+  für alles, was man ohnehin liegen lässt. Ein gesetzter Preis bleibt dabei
+  erhalten, falls man es sich anders überlegt.
 - **Preise von Hand setzen**, direkt in der Aufschlüsselung. Nötig für alles,
   was nicht handelbar ist (Segenskugel, Blutstein) und deshalb nie einen
   Marktpreis hat. Gilt für alle, wirkt sofort — der Erwartungswert wird im

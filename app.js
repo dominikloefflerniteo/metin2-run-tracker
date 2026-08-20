@@ -9,6 +9,7 @@
   var prefs = Object.assign({
     onlyMine: false,
     groupBy: 'player',        // 'player' = wer eingeloggt ist, 'account'
+    view: 'runs',             // 'runs' = Timer-Tabelle, 'bazar' = Preise
     filter: ''
   }, U.store.get(PREF_KEY, {}));
 
@@ -297,7 +298,8 @@
 
     renderChannels();
     renderSpawns();
-    paintValues();
+
+    if (prefs.view === 'bazar') renderBazar();
   }
 
   /* Nur die Zahlen nachziehen — kein Neuaufbau, sonst flackert es und man
@@ -535,229 +537,199 @@
     $('cdName').focus();
   }
 
-  /* ======================================================= Was lohnt sich */
-
-  /* Seitenspalte: Runs nach Yang pro Stunde. Das Alter der Preise steht immer
-     daneben — die Zahlen entstehen auf Dominiks PC, laeuft der nicht, sind sie
-     alt, und eine alte Zahl ohne Datum ist schlimmer als gar keine. */
-  function paintValues() {
-    var rank = PRICES.ranking();
-    $('valueBlock').hidden = rank.length === 0;
-    if (!rank.length) return;
-
-    var age = PRICES.age();
-    var cls = PRICES.ageClass(age);
-    var lbl = $('valAge');
-    lbl.textContent = age === null ? 'keine Preise' : 'Preise ' + U.fmtDur(age) + ' alt';
-    lbl.className = 'dim age-' + cls;
-    lbl.title = cls === 'stale'
-      ? 'Der Rechner mit metin-bazar-pro läuft gerade nicht — die Preise stehen still.'
-      : 'Die Preise werden alle 10 Minuten frisch gerechnet.';
-
-    var list = $('valList');
-    list.innerHTML = '';
-    rank.forEach(function (v) {
-      var li = U.el('li', 'valrow clickable' + (v.perRun < 0 ? ' bad' : ''));
-      li.onclick = function () { openValueDlg(v.runKey); };
-      var dot = U.el('span', 'run-dot');
-      dot.style.background = v.color || '#888';
-      li.appendChild(dot);
-      li.appendChild(U.el('span', 'valname', v.label));
-      var lead = v.perHourActive === null ? v.perHour : v.perHourActive;
-      var b = U.el('b', 'valh', PRICES.fmtShort(lead) + '/h');
-      if (v.perHourActive === null) b.classList.add('cdonly');
-      li.appendChild(b);
-      li.appendChild(U.el('span', 'valrun',
-        PRICES.fmtShort(v.perRun) + '/Run' +
-        (v.runSeconds ? ' · ' + U.fmtDur(v.runSeconds) : ' · Laufzeit fehlt')));
-      li.title = v.parts.map(function (p) {
-        return (p.isCost ? '− ' : '') + p.qty + '× ' + p.name +
-               ' à ' + PRICES.fmt(p.unit) + ' = ' + PRICES.fmt(p.value);
-      }).join('\n')
-        + '\n\n' + PRICES.fmt(v.perRun) + ' pro Run'
-        + (v.perHourActive !== null
-            ? '\n' + PRICES.fmt(v.perHourActive) + '/h bei ' + U.fmtDur(v.runSeconds) + ' Laufzeit'
-            : '\n(keine Laufzeit eingetragen — gerechnet über den Cooldown)')
-        + '\n' + PRICES.fmt(v.perHour) + '/h über den Cooldown (' + U.fmtDur(v.seconds) + ')';
-      list.appendChild(li);
-    });
-
-    var miss = rank.reduce(function (s, v) { return s + v.missing; }, 0);
-    $('valMeta').textContent = miss
-      ? miss + ' Position(en) ohne Preis — Untergrenze'
-      : 'Erwartungswert nach Drop-Raten, Marktpreise der letzten 7 Tage';
-  }
-
-  /* ------------------------------------------------ Wert aufschluesseln */
-
-  /* Zeigt, wie der Wert eines Runs zustande kommt: erst die Truhen pro Run
-     (Menge aenderbar), dann je Truhe jeder Drop mit Rate, Stueckpreis und
-     Beitrag. Jeder Stueckpreis ist ueberschreibbar — noetig fuer alles, was
-     nicht handelbar ist (Segenskugel, Blutstein) und damit nie einen
-     Marktpreis hat. Die Aenderung gilt fuer alle und wirkt sofort, ohne auf
-     den naechsten Push zu warten. */
-  function openValueDlg(runKey) {
-    var val = PRICES.valueFor(runKey);
-    if (!val) return;
-
-    $('vdTitle').textContent = val.label + ' — ' + PRICES.fmt(val.perRun) + ' pro Run';
-    var body = $('vdBody');
+  /* ============================================================== Bazar
+   *
+   * Alles, was mit Preisen zu tun hat, in einem eigenen Reiter: was ein Run
+   * einbringt, was jede Truhe wert ist, und ob sich ein Drachenstein-Aufstieg
+   * rechnet. Die Runs-Ansicht bleibt damit das, was sie war — eine Tabelle
+   * mit Timern.
+   */
+  function renderBazar() {
+    var body = $('bzBody');
     body.innerHTML = '';
 
-    var head = U.el('section', 'card');
-    head.appendChild(U.el('div', 'label', 'Pro Run'));
-    var sum = U.el('p', 'sub');
-    sum.textContent = val.perHourActive !== null
-      ? PRICES.fmt(val.perHourActive) + '/h bei ' + U.fmtDur(val.runSeconds) + ' Laufzeit · ' +
-        PRICES.fmt(val.perHour) + '/h über den Cooldown (' + U.fmtDur(val.seconds) + ')'
-      : PRICES.fmt(val.perHour) + '/h über den Cooldown (' + U.fmtDur(val.seconds) +
-        ') · Laufzeit nicht eingetragen';
-    head.appendChild(sum);
+    var age = PRICES.age();
+    var lbl = $('bzAge');
+    lbl.textContent = age === null ? 'noch keine Preise' : 'Preise ' + U.fmtDur(age) + ' alt';
+    lbl.className = 'dim age-' + PRICES.ageClass(age);
+    lbl.title = 'Die Preise entstehen auf Dominiks PC (metin-bazar-pro) und werden alle ' +
+                '10 Minuten frisch gerechnet. Läuft er nicht, stehen sie still.';
+
+    if (age === null) {
+      body.appendChild(U.el('p', 'empty',
+        'Noch keine Marktdaten. Sie kommen vom Rechner, der metin-bazar-pro laufen lässt.'));
+      return;
+    }
+
+    bazarRuns(body);
+    bazarChests(body);
+    bazarAlchemy(body);
+  }
+
+  /* --- Was lohnt sich: Runs nach Stundenwert --- */
+  function bazarRuns(body) {
+    var rank = PRICES.ranking();
+    if (!rank.length) return;
+
+    var sec = U.el('section', 'card');
+    sec.appendChild(U.el('div', 'label', 'Was lohnt sich'));
+    sec.appendChild(U.el('p', 'sub',
+      'Wert pro Run aus den Truhen, geteilt durch die Laufzeit — oder durch den ' +
+      'Cooldown, solange keine Laufzeit eingetragen ist (Einstellungen → Runs).'));
 
     var t = U.el('table', 'mini');
     var hr = U.el('tr');
-    ['Truhe / Position', 'Ø pro Run', 'Wert je Stück', 'Beitrag'].forEach(function (h) {
+    ['Run', 'Wert/Run', 'pro Stunde', 'Grundlage', ''].forEach(function (h) {
       hr.appendChild(U.el('th', null, h));
     });
     t.appendChild(hr);
 
-    val.parts.forEach(function (p) {
+    rank.forEach(function (v) {
       var tr = U.el('tr');
-      tr.appendChild(U.el('td', null, (p.isCost ? '− ' : '') + p.name));
+      var tdN = U.el('td');
+      var dot = U.el('span', 'run-dot');
+      dot.style.background = v.color || '#888';
+      tdN.appendChild(dot);
+      tdN.appendChild(U.el('span', null, ' ' + v.label));
+      tr.appendChild(tdN);
 
-      var tdQ = U.el('td');
-      if (p.fixed) {
-        tdQ.className = 'dim';
-        tdQ.textContent = 'Pauschale';
-      } else {
-        var inQ = U.el('input', 'txt small');
-        inQ.value = String(p.qty).replace('.', ',');
-        inQ.onchange = function () {
-          var n = parseFloat(String(inQ.value).replace(',', '.'));
-          if (!isFinite(n) || n < 0) { inQ.value = String(p.qty).replace('.', ','); return; }
-          var row = DB.lootFor(runKey).find(function (l) {
-            return Number(l.vnum) === Number(p.vnum) && l.kind === p.kind;
-          });
-          if (!row) return;
-          row.qty = n; DB.saveRunLoot(row);
-          openValueDlg(runKey); render();
-        };
-        tdQ.appendChild(inQ);
-      }
-      tr.appendChild(tdQ);
+      tr.appendChild(U.el('td', v.perRun < 0 ? 'bad' : '', PRICES.fmt(v.perRun)));
 
-      tr.appendChild(U.el('td', 'dim', p.known ? PRICES.fmt(p.unit) : '—'));
-      tr.appendChild(U.el('td', null, PRICES.fmt(p.isCost ? -p.value : p.value)));
+      var lead = v.perHourActive === null ? v.perHour : v.perHourActive;
+      var tdH = U.el('td');
+      tdH.appendChild(U.el('b', v.perRun < 0 ? 'bad' : 'good', PRICES.fmt(lead)));
+      tr.appendChild(tdH);
+
+      tr.appendChild(U.el('td', 'dim', v.perHourActive === null
+        ? 'Cooldown ' + U.fmtDur(v.seconds)
+        : 'Laufzeit ' + U.fmtDur(v.runSeconds)));
+
+      var tdB = U.el('td');
+      var b = U.el('button', 'btn tiny', 'aufschlüsseln');
+      b.onclick = function () { openValueDlg(v.runKey); };
+      tdB.appendChild(b);
+      tr.appendChild(tdB);
+
       t.appendChild(tr);
     });
-    head.appendChild(t);
-    body.appendChild(head);
+    sec.appendChild(t);
+    body.appendChild(sec);
+  }
 
-    // Je Truhe die volle Aufschluesselung.
-    val.parts.forEach(function (p) {
-      if (p.kind !== 'chest') return;
-      var c = DB.data.chest_values.find(function (x) { return Number(x.vnum) === Number(p.vnum); });
-      if (!c) return;
-      var rows = PRICES.chestBreakdown(c);
-      if (!rows.length) return;
+  /* --- Truhen: Marktpreis gegen Erwartungswert --- */
+  function bazarChests(body) {
+    var chests = (DB.data.chest_values || []).slice();
+    if (!chests.length) return;
 
-      var sec = U.el('section', 'card');
-      var lab = U.el('div', 'label', p.name);
-      if ((Number(c.openings) || 1) > 1) {
-        lab.appendChild(U.el('span', 'dim', '  ' + c.openings + ' Drops pro Öffnung'));
-      }
-      sec.appendChild(lab);
-
-      // Markt gegen Erwartungswert: die Frage ist ja nicht nur "was ist drin",
-      // sondern "aufmachen oder so verkaufen".
+    var rows = chests.map(function (c) {
       var ev = PRICES.chestEV(c);
       var market = Number(c.chest_price) || 0;
-      var cmp = U.el('div', 'cmp');
-      function stat(label, text, cls) {
-        var d = U.el('div', 'cmp-box');
-        d.appendChild(U.el('span', 'cmp-l', label));
-        d.appendChild(U.el('b', 'cmp-v' + (cls ? ' ' + cls : ''), text));
-        return d;
-      }
-      cmp.appendChild(stat('Marktpreis', market ? PRICES.fmt(market) : 'kein Angebot'));
-      cmp.appendChild(stat('Erwartungswert', PRICES.fmt(ev)));
-      if (market) {
-        var diff = ev - market;
-        cmp.appendChild(stat('Differenz', (diff > 0 ? '+' : '') + PRICES.fmt(diff),
-                             diff > 0 ? 'good' : 'bad'));
-        cmp.appendChild(stat('Marge',
-          (diff > 0 ? '+' : '') + (diff / market * 100).toFixed(0) + ' %',
-          diff > 0 ? 'good' : 'bad'));
-        cmp.appendChild(stat('Fazit', diff > 0 ? 'öffnen' : 'verkaufen',
-                             diff > 0 ? 'good' : 'bad'));
-      }
-      sec.appendChild(cmp);
+      return { c: c, ev: ev, market: market, diff: market ? ev - market : 0 };
+    }).sort(function (a, b) { return b.ev - a.ev; });
 
-      var noPrice = rows.filter(function (r) { return !r.unit && !r.ignored; }).length;
-      var skipped = rows.filter(function (r) { return r.ignored; }).length;
-      var merged = rows.reduce(function (s, r) { return s + (r.rows > 1 ? r.rows - 1 : 0); }, 0);
-      sec.appendChild(U.el('p', 'sub',
-        rows.length + ' mögliche Drops' +
-        (merged ? ' (' + (rows.length + merged) + ' Einträge — gleiche Items zusammengefasst)' : '') +
-        (noPrice ? ' · ' + noPrice + ' ohne Preis (zählen mit 0 — hier eintragen, wenn du es besser weißt)' : '') +
-        (skipped ? ' · ' + skipped + ' abgewählt' : '')));
+    var sec = U.el('section', 'card');
+    sec.appendChild(U.el('div', 'label', 'Truhen'));
+    sec.appendChild(U.el('p', 'sub',
+      'Erwartungswert einer Öffnung gegen den Marktpreis. Öffnen lohnt sich nur, ' +
+      'wenn die Truhe billiger ist, als drin steckt.'));
 
-      var dt = U.el('table', 'mini drops');
-      var dh = U.el('tr');
-      ['Drop', 'Rate', 'Stück', 'Wert je Stück', 'Beitrag', 'zählt'].forEach(function (h) {
-        dh.appendChild(U.el('th', null, h));
+    var t = U.el('table', 'mini');
+    var hr = U.el('tr');
+    ['Truhe', 'Marktpreis', 'Erwartungswert', 'Differenz', 'Marge', 'Fazit'].forEach(function (h) {
+      hr.appendChild(U.el('th', null, h));
+    });
+    t.appendChild(hr);
+
+    rows.forEach(function (r) {
+      var tr = U.el('tr');
+      tr.appendChild(U.el('td', null, r.c.name));
+      tr.appendChild(U.el('td', r.market ? '' : 'dim', r.market ? PRICES.fmt(r.market) : 'kein Angebot'));
+      tr.appendChild(U.el('td', null, PRICES.fmt(r.ev)));
+      if (r.market) {
+        tr.appendChild(U.el('td', r.diff > 0 ? 'good' : 'bad',
+                            (r.diff > 0 ? '+' : '') + PRICES.fmt(r.diff)));
+        tr.appendChild(U.el('td', r.diff > 0 ? 'good' : 'bad',
+                            (r.diff > 0 ? '+' : '') + (r.diff / r.market * 100).toFixed(0) + ' %'));
+        tr.appendChild(U.el('td', r.diff > 0 ? 'good' : 'bad', r.diff > 0 ? 'öffnen' : 'verkaufen'));
+      } else {
+        tr.appendChild(U.el('td', 'dim', '—'));
+        tr.appendChild(U.el('td', 'dim', '—'));
+        tr.appendChild(U.el('td', 'dim', '—'));
+      }
+      t.appendChild(tr);
+    });
+    sec.appendChild(t);
+    body.appendChild(sec);
+  }
+
+  /* --- Alchemie: lohnt der Aufstieg? --- */
+  function bazarAlchemy(body) {
+    var stones = PRICES.stones();
+    if (!stones.length) return;
+
+    var sec = U.el('section', 'card');
+    sec.appendChild(U.el('div', 'label', 'Alchemie'));
+    sec.appendChild(U.el('p', 'sub',
+      'Ein Aufstieg gelingt zu 50 %, im Fehlschlag kommt ein Stein zurück — ' +
+      'im Schnitt kostet eine Stufe also drei Steine. Bei den Mythisch-Stufen ' +
+      'sind es 70 % (≈ 1,43). Grün heißt: die nächste Stufe ist mehr wert als ' +
+      'das, was man hineinsteckt.'));
+
+    var best = PRICES.bestUpgrade();
+    if (best) {
+      var hint = U.el('p', 'sub good');
+      hint.textContent = 'Bestes Geschäft gerade: ' + best.stone + ' ' +
+        best.step.from.name + ' → ' + best.step.to.name +
+        ' (+' + best.percent.toFixed(0) + ' %, ' + PRICES.fmt(best.step.profit) + ' je Stein)';
+      sec.appendChild(hint);
+    }
+
+    stones.forEach(function (s) {
+      var t = U.el('table', 'mini');
+      var hr = U.el('tr');
+      [s.name, 'Preis', 'Aufstieg kostet', 'Gewinn', ''].forEach(function (h) {
+        hr.appendChild(U.el('th', null, h));
       });
-      dt.appendChild(dh);
+      t.appendChild(hr);
 
-      rows.forEach(function (d) {
-        var tr = U.el('tr', (d.ignored ? 'skip' : (d.unit ? '' : 'nop')));
-        var tdN = U.el('td', null, d.name);
-        if (d.untradeable) tdN.title = 'nicht handelbar — hat nie einen Marktpreis';
-        tr.appendChild(tdN);
-        var tdR = U.el('td', 'dim', d.rate.toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' %');
-        if (d.rows > 1) {
-          tdR.textContent += ' *';
-          tdR.title = d.rows + ' Einträge in der Droptabelle, hier zusammengefasst';
+      s.rows.forEach(function (row, i) {
+        var st = s.steps[i];
+        var tr = U.el('tr');
+        tr.appendChild(U.el('td', null, row.name));
+
+        var price = PRICES.override(row.vnum) !== null ? PRICES.override(row.vnum) : Number(row.price) || 0;
+        tr.appendChild(U.el('td', price ? '' : 'dim', price ? PRICES.fmt(price) : 'kein Angebot'));
+
+        if (st && st.known) {
+          tr.appendChild(U.el('td', 'dim',
+            PRICES.fmt(st.cost) + '  (' + st.factor.toFixed(2).replace('.', ',') + '×)'));
+          tr.appendChild(U.el('td', st.profit > 0 ? 'good' : 'bad',
+            (st.profit > 0 ? '+' : '') + PRICES.fmt(st.profit)));
+          tr.appendChild(U.el('td', st.profit > 0 ? 'good' : 'bad',
+            (st.profit > 0 ? '+' : '') + st.percent.toFixed(0) + ' %'));
+        } else {
+          tr.appendChild(U.el('td', 'dim', st ? '—' : ''));
+          tr.appendChild(U.el('td', 'dim', ''));
+          tr.appendChild(U.el('td', 'dim', ''));
         }
-        tr.appendChild(tdR);
-        tr.appendChild(U.el('td', 'dim', d.qty > 1 ? d.qty + '×' : ''));
-
-        var tdU = U.el('td');
-        var inU = U.el('input', 'txt small' + (d.manual ? ' manual' : ''));
-        inU.value = d.unit ? PRICES.fmtShort(d.unit) : '';
-        inU.placeholder = d.untradeable ? 'nicht handelbar' : '—';
-        inU.title = d.manual
-          ? 'von Hand gesetzt — leeren, um wieder den Marktpreis zu nehmen'
-          : 'eigenen Wert setzen ("3,5 Won", "20 Mio")';
-        inU.onchange = function () {
-          var n = PRICES.parseYang(inU.value);
-          DB.setPriceOverride(d.vnum, n, d.name, ZGATE.user());
-          openValueDlg(runKey); render();
-        };
-        tdU.appendChild(inU); tr.appendChild(tdU);
-
-        tr.appendChild(U.el('td', null, d.ignored ? 'zählt nicht' : (d.ev ? PRICES.fmt(d.ev) : '—')));
-
-        // Haken raus = der Drop faellt aus der Rechnung. Fuer alles, was man
-        // ohnehin liegen laesst; ein gesetzter Preis bleibt dabei erhalten.
-        var tdI = U.el('td');
-        var cbI = U.el('input');
-        cbI.type = 'checkbox';
-        cbI.checked = !d.ignored;
-        cbI.title = 'Haken raus: dieser Drop wird nicht mitgezählt';
-        cbI.onchange = function () {
-          DB.setPriceIgnored(d.vnum, !cbI.checked, d.name, ZGATE.user());
-          openValueDlg(runKey); render();
-        };
-        tdI.appendChild(cbI); tr.appendChild(tdI);
-
-        dt.appendChild(tr);
+        t.appendChild(tr);
       });
-      sec.appendChild(dt);
-      body.appendChild(sec);
+      sec.appendChild(t);
     });
 
-    $('valueDlg').hidden = false;
+    body.appendChild(sec);
+  }
+
+  function switchView(view) {
+    prefs.view = view === 'bazar' ? 'bazar' : 'runs';
+    savePrefs();
+    $('viewRuns').hidden = prefs.view !== 'runs';
+    $('toolbarRuns').hidden = prefs.view !== 'runs';
+    $('viewBazar').hidden = prefs.view !== 'bazar';
+    Array.prototype.forEach.call(document.querySelectorAll('#tabs .tab'), function (b) {
+      b.classList.toggle('on', b.dataset.view === prefs.view);
+    });
+    if (prefs.view === 'bazar') renderBazar();
   }
 
   /* --------------------------------------------------- Beute bearbeiten */
@@ -1078,6 +1050,11 @@
       $('timerDlg').hidden = true; render();
     };
 
+    /* --- Reiter --- */
+    Array.prototype.forEach.call(document.querySelectorAll('#tabs .tab'), function (b) {
+      b.onclick = function () { switchView(b.dataset.view); };
+    });
+
     /* --- Wert-Dialog --- */
     $('vdClose').onclick = function () { $('valueDlg').hidden = true; };
 
@@ -1229,6 +1206,7 @@
     DB.onStatus(paintStatus);
     DB.onChange(render);
     DB.init();
+    switchView(prefs.view);
     render();
     setInterval(tick, 500);
   }

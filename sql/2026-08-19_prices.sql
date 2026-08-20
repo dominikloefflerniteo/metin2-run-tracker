@@ -87,11 +87,14 @@ create table if not exists public.price_overrides (
   vnum       int  not null,
   name       text not null default '',
   price      bigint not null default 0,
+  ignored    boolean not null default false,  -- true = zaehlt gar nicht mit
   note       text not null default '',
   by_user    text not null default '',
   updated_at timestamptz not null default now(),
   primary key (server, vnum)
 );
+-- fuer Projekte, die die Tabelle schon ohne die Spalte haben:
+alter table public.price_overrides add column if not exists ignored boolean not null default false;
 
 -- ------------------------------------------------- Laufzeit je Run
 -- `seconds` ist der Cooldown (wann der Run wieder GEHT). Das hier ist die

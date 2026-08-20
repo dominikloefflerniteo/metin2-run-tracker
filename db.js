@@ -22,7 +22,7 @@
   /* chest_values / item_prices werden NUR gelesen — sie kommen vom Push-Job
      auf Dominiks PC (metin-bazar-pro). run_loot ist wieder beidseitig. */
   var TABLES = ['chars', 'timers', 'run_types', 'channels', 'spawns',
-                'chest_values', 'item_prices', 'run_loot', 'price_overrides'];
+                'chest_values', 'item_prices', 'run_loot', 'price_overrides', 'alchemy_prices'];
 
   var DEFAULT_RUN_TYPES = [
     { key: 'hydra',  label: 'Hydra',     seconds: 20 * 60,   from_start: true,  color: '#e0574f', sort: 10, enabled: true },
@@ -37,7 +37,7 @@
     connected: false,
     creds: U.store.get(CRED_KEY, { url: '', key: '' }),
     data: { chars: [], timers: [], run_types: DEFAULT_RUN_TYPES.slice(), channels: [], spawns: [],
-            chest_values: [], item_prices: [], run_loot: [], price_overrides: [] },
+            chest_values: [], item_prices: [], run_loot: [], price_overrides: [], alchemy_prices: [] },
     status: { state: 'off', text: 'nur lokal' },
     DEFAULT_RUN_TYPES: DEFAULT_RUN_TYPES
   };
@@ -65,7 +65,7 @@
     if (cached && cached.chars) {
       DB.data = cached;
       if (!DB.data.spawns) DB.data.spawns = [];   // aelterer Zwischenspeicher
-      ['chest_values', 'item_prices', 'run_loot', 'price_overrides'].forEach(function (t) {
+      ['chest_values', 'item_prices', 'run_loot', 'price_overrides', 'alchemy_prices'].forEach(function (t) {
         if (!DB.data[t]) DB.data[t] = [];
       });
       if (!DB.data.run_types || !DB.data.run_types.length) {

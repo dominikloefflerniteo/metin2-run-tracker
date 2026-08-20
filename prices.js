@@ -241,6 +241,73 @@
     };
   };
 
+  /* ====================================================== Drachensteine
+   *
+   * Aufstieg heisst: mehrere Steine einer Stufe zu einem der naechsten
+   * verschmelzen. Bei 50 % Erfolg und einem Stein zurueck im Fehlschlag
+   * braucht man im Schnitt DREI. Die Mythisch-Unterstufen gehen mit 70 %,
+   * also ~1,43. Lohnt sich, wenn die naechste Stufe mehr wert ist als das,
+   * was man dafuer hineinsteckt.
+   *
+   * Die Raten stammen aus metin-bazar-pro (src/app/alchemy/page.tsx) und
+   * gelten fuers Spiel, nicht fuer den Server — sie stehen hier fest.
+   */
+  P.UPGRADE_FACTOR = 3;             // 50 % Erfolg, 1 zurueck bei Fehlschlag
+  P.MYTHISCH_FACTOR = 1 / 0.7;      // ~1,43
+
+  /* Alle Steine, jeder mit seinen Stufen in Aufstiegsreihenfolge. */
+  P.stones = function () {
+    var by = {};
+    (DB.data.alchemy_prices || []).forEach(function (r) {
+      if (!by[r.stone]) by[r.stone] = { stone: r.stone, name: r.stone_name, rows: [] };
+      by[r.stone].rows.push(r);
+    });
+    return Object.keys(by).map(function (k) {
+      var s = by[k];
+      s.rows.sort(function (a, b) { return (a.sort || 0) - (b.sort || 0); });
+      s.steps = P.upgradeSteps(s.rows);
+      return s;
+    }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+  };
+
+  /* Je Stufenpaar: was kostet der Aufstieg, was bringt er. */
+  P.upgradeSteps = function (rows) {
+    var out = [];
+    for (var i = 0; i < rows.length - 1; i++) {
+      var from = rows[i], to = rows[i + 1];
+      var fromPrice = P.override(from.vnum) !== null ? P.override(from.vnum) : Number(from.price) || 0;
+      var toPrice = P.override(to.vnum) !== null ? P.override(to.vnum) : Number(to.price) || 0;
+      // Innerhalb der Mythisch-Unterstufen gilt die bessere Rate.
+      var factor = (from.tier === 'mythisch' && to.tier === 'mythisch')
+        ? P.MYTHISCH_FACTOR : P.UPGRADE_FACTOR;
+      var cost = fromPrice * factor;
+      out.push({
+        from: from, to: to,
+        fromPrice: fromPrice, toPrice: toPrice,
+        factor: factor,
+        cost: cost,
+        profit: toPrice - cost,
+        percent: cost > 0 ? ((toPrice - cost) / cost) * 100 : 0,
+        known: fromPrice > 0 && toPrice > 0
+      });
+    }
+    return out;
+  };
+
+  /* Der lohnendste Aufstieg ueber alle Steine — die eine Zahl, die man wissen will. */
+  P.bestUpgrade = function () {
+    var best = null;
+    P.stones().forEach(function (s) {
+      s.steps.forEach(function (st) {
+        if (!st.known || st.profit <= 0) return;
+        if (!best || st.percent > best.percent) {
+          best = { stone: s.name, step: st, percent: st.percent };
+        }
+      });
+    });
+    return best;
+  };
+
   /* Alle Runs mit Beute, bester Stundenwert zuerst. Sortiert nach der
      Laufzeit-Rechnung, wo es sie gibt — die beantwortet "was mache ich
      jetzt in der naechsten Stunde", der Cooldown nur "was tickt". */

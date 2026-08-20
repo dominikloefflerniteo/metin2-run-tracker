@@ -171,6 +171,10 @@ Segenskugel, Blutstein, Tapferkeitsumhang haben nie einen Marktpreis und zählen
 sonst mit 0. Der Erwartungswert wird im Browser aus den Drops nachgerechnet, die
 Änderung wirkt also sofort. Ein leeres Feld nimmt sie zurück.
 
+Die Spalte **zählt** wirft einen Drop ganz aus der Rechnung — für alles, was
+ihr ohnehin liegen lasst. Ein gesetzter Preis bleibt dabei erhalten. Beides
+steht in der Datenbank und gilt für alle, nicht nur im eigenen Browser.
+
 **Preise altern.** Sie entstehen auf dem PC, der `metin-bazar-pro` laufen lässt
 (Playwright-Scraper + eigene Preishistorie, Push nach jedem Poll). Läuft der
 nicht, stehen die Zahlen still — deshalb steht das Alter immer daneben:

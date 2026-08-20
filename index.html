@@ -27,7 +27,12 @@
 <div class="boot-error" id="bootError" hidden></div>
 
 <main>
-  <div class="toolbar">
+  <div class="tabs" id="tabs" role="tablist">
+    <button class="tab on" data-view="runs">Runs</button>
+    <button class="tab" data-view="bazar">Bazar</button>
+  </div>
+
+  <div class="toolbar" id="toolbarRuns">
     <button class="btn primary" id="btnAddChar">+ Charakter</button>
     <input class="txt" id="filter" placeholder="filtern (Char oder Spieler)…" />
     <label class="chk"><input type="checkbox" id="onlyMine" /> nur meine</label>
@@ -39,7 +44,7 @@
     <span class="hint">Klick auf <b>starten</b> setzt den Cooldown · Klick auf einen laufenden Timer öffnet ihn</span>
   </div>
 
-  <div class="cols">
+  <div class="cols" id="viewRuns">
     <div class="tablewrap">
       <table id="grid">
         <thead id="gridHead"></thead>
@@ -51,13 +56,6 @@
     </div>
 
     <aside class="side" id="chbar">
-      <div id="valueBlock" hidden>
-        <div class="side-head">Was lohnt sich <span class="dim" id="valAge"></span></div>
-        <ul class="vallist" id="valList"></ul>
-        <div class="side-foot" id="valMeta">—</div>
-        <div class="side-sep"></div>
-      </div>
-
       <div id="chBlock">
         <div class="side-head">Spawns <span class="dim" id="chServer"></span></div>
         <ul class="chlist" id="chGrid"></ul>
@@ -77,6 +75,18 @@
         <span class="side-foot" id="spHint">Minute:Sekunde im Takt · „39:30 /30m" für halbstündlich</span>
       </form>
     </aside>
+  </div>
+
+  <!-- ------------------------------------------------------------- Bazar -->
+  <div id="viewBazar" hidden>
+    <div class="toolbar">
+      <span class="hint">
+        Preise vom Markt (<b>[DIA] Blos</b>), Erwartungswerte aus den Drop-Raten.
+      </span>
+      <div class="grow"></div>
+      <span class="dim" id="bzAge"></span>
+    </div>
+    <div class="bazar" id="bzBody"></div>
   </div>
 </main>
 
