@@ -3,12 +3,20 @@
 Neuestes zuerst. Die oberste Nummer muss mit `version.js` übereinstimmen —
 der Smoketest prüft das.
 
-## 0.8.0 — 2026-08-20
-Was ein Run wert ist
+## 0.9.0 — 2026-08-20
+Reiter Bazar: was ein Run wert ist, und ob sich Alchemie lohnt
 
-- **Wert pro Run und Yang/h** im Spaltenkopf und in der neuen Seitenspalte
-  **Was lohnt sich** — Runs nach Stundenwert sortiert. Der Tooltip schlüsselt
-  auf, welche Truhe wie viel beiträgt.
+- Neuer Reiter **Bazar** neben **Runs**. Alles Preisliche liegt dort:
+  **Was lohnt sich** (Runs nach Stundenwert), **Truhen** (Marktpreis gegen
+  Erwartungswert mit Fazit *öffnen* / *verkaufen*) und **Alchemie**.
+- **Alchemie**: alle sechs Drachensteine über alle Stufen mit Marktpreis,
+  dazu je Stufe was der Aufstieg kostet und was er bringt. Grundlage sind die
+  Erfolgsraten aus metin-bazar-pro — 50 % mit einem Stein zurück im Fehlschlag
+  heißt im Schnitt **drei Steine je Stufe**, bei den Mythisch-Unterstufen
+  70 % (≈ 1,43). Oben steht das beste Geschäft über alle Steine.
+- **Wert pro Run und Yang/h** im Spaltenkopf der Runs-Tabelle. Der Tooltip
+  schlüsselt auf, welche Truhe wie viel beiträgt; das `?` öffnet die
+  Aufschlüsselung.
 - **Laufzeit je Run** in den Einstellungen neben dem Cooldown. Wer genug
   Charaktere hat, wartet nie auf einen Cooldown — dann ist die eigene Zeit der
   Engpass, und genau darauf rechnet die Seite dann Yang/h. Ohne Eintrag bleibt

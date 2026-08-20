@@ -135,10 +135,12 @@ haben dieselben Minuten), aber einzelne Channels starten auch für sich neu
 (Tigerghost CH2, Teutonia CH2) — deshalb rechnet jeder Channel mit seinem
 eigenen Takt.
 
-## Was ein Run wert ist
+## Reiter Bazar
 
-Über jeder Run-Spalte steht, was der Run einbringt, und in der Seitenspalte
-stehen alle Runs nach Stundenwert sortiert (**Was lohnt sich**). Drei Zutaten:
+Alles Preisliche liegt im Reiter **Bazar**: **Was lohnt sich** (Runs nach
+Stundenwert), **Truhen** (Marktpreis gegen Erwartungswert) und **Alchemie**.
+Über jeder Run-Spalte im Reiter **Runs** steht zusätzlich kompakt, was der Run
+einbringt. Drei Zutaten:
 
 | Woher | Was |
 |---|---|

@@ -96,6 +96,26 @@ create table if not exists public.price_overrides (
 -- fuer Projekte, die die Tabelle schon ohne die Spalte haben:
 alter table public.price_overrides add column if not exists ignored boolean not null default false;
 
+
+-- ----------------------------------------------------- Drachensteine
+-- Alle Stufen aller sechs Steine mit Marktpreis. Der Browser rechnet daraus,
+-- ob sich ein Aufstieg lohnt: 50 % Erfolg und ein Stein zurueck im Fehlschlag
+-- heisst im Schnitt DREI Steine je Stufe, bei den Mythisch-Unterstufen 70 %
+-- (~1,43). Die Raten gehoeren zum Spiel und stehen deshalb im Code.
+create table if not exists public.alchemy_prices (
+  server     text not null default '[DIA] Blos',
+  vnum       int  not null,
+  stone      text not null,
+  stone_name text not null,
+  tier       text not null,
+  subtier    int  not null default 0,
+  name       text not null,
+  price      bigint not null default 0,
+  sort       int  not null default 0,
+  fetched_at timestamptz not null default now(),
+  primary key (server, vnum)
+);
+
 -- ------------------------------------------------- Laufzeit je Run
 -- `seconds` ist der Cooldown (wann der Run wieder GEHT). Das hier ist die
 -- Zeit, die der Run tatsaechlich KOSTET. Wer genug Charaktere hat, wartet nie
@@ -106,16 +126,19 @@ alter table public.run_types add column if not exists run_seconds int not null d
 -- ------------------------------------------------------------------ RLS
 -- Gleiches Modell wie der Rest: anon darf alles, der Schutz ist der Key.
 alter table public.chest_values enable row level security;
+alter table public.alchemy_prices enable row level security;
 alter table public.price_overrides enable row level security;
 alter table public.item_prices  enable row level security;
 alter table public.run_loot     enable row level security;
 
 drop policy if exists chest_values_all on public.chest_values;
+drop policy if exists alchemy_prices_all on public.alchemy_prices;
 drop policy if exists price_overrides_all on public.price_overrides;
 drop policy if exists item_prices_all  on public.item_prices;
 drop policy if exists run_loot_all     on public.run_loot;
 
 create policy chest_values_all on public.chest_values for all to anon using (true) with check (true);
+create policy alchemy_prices_all on public.alchemy_prices for all to anon using (true) with check (true);
 create policy price_overrides_all on public.price_overrides for all to anon using (true) with check (true);
 create policy item_prices_all  on public.item_prices  for all to anon using (true) with check (true);
 create policy run_loot_all     on public.run_loot     for all to anon using (true) with check (true);
@@ -124,7 +147,7 @@ create policy run_loot_all     on public.run_loot     for all to anon using (tru
 do $$
 declare t text;
 begin
-  foreach t in array array['chest_values','item_prices','run_loot','price_overrides'] loop
+  foreach t in array array['chest_values','item_prices','run_loot','price_overrides','alchemy_prices'] loop
     if not exists (
       select 1 from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t

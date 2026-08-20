@@ -351,6 +351,34 @@ async function main() {
   ok($('bzAge').className.indexOf('age-fresh') !== -1, 'frische Preise werden gruen markiert');
   ok(doc.querySelector('#gridHead .run-val') !== null, 'der Wert steht auch im Spaltenkopf');
 
+  console.log('\n[Alchemie]');
+  // Drei Stufen: 10 Mio -> 40 Mio lohnt (3 × 10 = 30 < 40), 40 -> 100 nicht (120 > 100).
+  DB.data.alchemy_prices = [
+    { server: 'x', vnum: 113000, stone: 'diamant', stone_name: 'Drachendiamant', tier: 'antiker',
+      subtier: 0, name: 'Antiker', price: 10000000, sort: 10, fetched_at: new Date().toISOString() },
+    { server: 'x', vnum: 114000, stone: 'diamant', stone_name: 'Drachendiamant', tier: 'legendaer',
+      subtier: 0, name: 'Legendärer', price: 40000000, sort: 20, fetched_at: new Date().toISOString() },
+    { server: 'x', vnum: 115000, stone: 'diamant', stone_name: 'Drachendiamant', tier: 'mythisch',
+      subtier: 0, name: 'Mythisch Matt', price: 100000000, sort: 30, fetched_at: new Date().toISOString() },
+    { server: 'x', vnum: 115100, stone: 'diamant', stone_name: 'Drachendiamant', tier: 'mythisch',
+      subtier: 1, name: 'Mythisch Klar', price: 160000000, sort: 40, fetched_at: new Date().toISOString() }
+  ];
+  const stones = window.PRICES.stones();
+  ok(stones.length === 1 && stones[0].steps.length === 3, 'ein Stein mit drei Aufstiegen');
+  ok(stones[0].steps[0].cost === 30000000, 'Aufstieg kostet 3 Steine: ' + window.PRICES.fmt(30000000));
+  ok(stones[0].steps[0].profit === 10000000, 'und bringt 10 Mio Gewinn');
+  ok(stones[0].steps[1].profit === -20000000, 'der naechste lohnt nicht (3 × 40 > 100)');
+  ok(Math.round(stones[0].steps[2].cost) === 142857143,
+     'zwischen Mythisch-Stufen gilt 1,43 statt 3: ' + window.PRICES.fmt(stones[0].steps[2].cost));
+  const best = window.PRICES.bestUpgrade();
+  ok(best && best.step.from.name === 'Antiker', 'bester Aufstieg wird gefunden: ' + (best && best.step.from.name));
+
+  click(doc.querySelector('#tabs .tab[data-view="bazar"]'));
+  ok($('bzBody').textContent.indexOf('Alchemie') !== -1, 'die Alchemie steht im Bazar');
+  ok($('bzBody').textContent.indexOf('Drachendiamant') !== -1, 'mit dem Stein');
+  click(doc.querySelector('#tabs .tab[data-view="runs"]'));
+  ok(!$('viewRuns').hidden, 'zurueck auf Runs');
+
   console.log('\n[Aufschlüsselung]');
   // Truhe mit Drops, damit es etwas aufzuschluesseln gibt: 10 % auf ein Item
   // zu 50 Mio plus ein unverkaeufliches, das mit 0 zaehlt.
