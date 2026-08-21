@@ -721,38 +721,78 @@
         res.appendChild(U.el('p', 'side-empty', 'nichts gefunden — liegt gerade nichts davon im Bazar?'));
       }
       hits.forEach(function (i) {
-        var b = U.el('button', 'wdhit');
+        var b = U.el('button', 'wdhit' + (i.group ? ' grp' : ''));
         b.appendChild(U.el('span', null, i.name));
-        b.appendChild(U.el('span', 'dim', i.listings + '× · ab ' + PRICES.fmtShort(i.cheapest)));
+        // Was gerade angeboten wird, ist nur ein Hinweis — ueberwachen kann
+        // man auch, was heute niemand verkauft.
+        b.appendChild(U.el('span', 'dim', i.listings
+          ? i.listings + '× am Markt · ab ' + PRICES.fmtShort(i.cheapest)
+          : 'gerade keins am Markt'));
         b.onclick = function () { wdItem = i; paintWatchDlg(); };
         res.appendChild(b);
       });
     } else {
       var pick = U.el('div', 'wdpick');
-      pick.appendChild(U.el('b', null, wdItem.name));
+      var lbl = U.el('div');
+      lbl.appendChild(U.el('b', null, wdItem.name));
+      if (wdItem.vnums.length > 1) {
+        lbl.appendChild(U.el('span', 'dim', ' — ' + wdItem.vnums.length + ' Schmiedestufen'));
+      }
+      pick.appendChild(lbl);
       var chg = U.el('button', 'btn tiny', 'ändern');
-      chg.onclick = function () { wdItem = null; paintWatchDlg(); };
+      chg.onclick = function () { wdItem = null; $('wdSearch').focus(); paintWatchDlg(); };
       pick.appendChild(chg);
       res.appendChild(pick);
     }
 
-    // Bonuszeilen
+    // Bonuszeilen. Ein normales <select> mit 303 Eintraegen ist nicht
+    // bedienbar — deshalb ein Suchfeld, das die Liste filtert.
     var box = $('wdAttrs');
     box.innerHTML = '';
     wdAttrs.forEach(function (a, idx) {
-      var row = U.el('div', 'row');
-      var sel = U.el('select', 'txt small');
-      STATS.list.forEach(function (s) {
-        var o = U.el('option', null, STATS.label(s.id));
-        o.value = String(s.id);
-        if (s.id === a.statId) o.selected = true;
-        sel.appendChild(o);
-      });
-      sel.onchange = function () { a.statId = Number(sel.value); };
-      row.appendChild(sel);
+      var row = U.el('div', 'attrrow');
+
+      var pickWrap = U.el('div', 'combo');
+      var inp = U.el('input', 'txt small');
+      inp.value = a.statId ? STATS.label(a.statId) : '';
+      inp.placeholder = 'Bonus suchen…';
+      inp.autocomplete = 'off';
+      pickWrap.appendChild(inp);
+
+      var drop = U.el('div', 'combolist');
+      drop.hidden = true;
+      pickWrap.appendChild(drop);
+
+      function fill(q) {
+        drop.innerHTML = '';
+        var hits = STATS.search(q, 40);
+        hits.forEach(function (s) {
+          var b = U.el('button', 'comboitem' + (s.top ? ' top' : ''), STATS.label(s.id));
+          b.title = s.tpl;
+          b.onmousedown = function (ev) {          // vor blur feuern
+            ev.preventDefault();
+            a.statId = s.id;
+            inp.value = STATS.label(s.id);
+            drop.hidden = true;
+          };
+          drop.appendChild(b);
+        });
+        drop.hidden = hits.length === 0;
+      }
+
+      inp.onfocus = function () { fill(''); };
+      inp.oninput = function () { fill(inp.value); };
+      inp.onblur = function () {
+        setTimeout(function () {
+          drop.hidden = true;
+          // Freitext, der zu nichts passt, faellt auf die letzte Wahl zurueck.
+          inp.value = a.statId ? STATS.label(a.statId) : '';
+        }, 120);
+      };
+      row.appendChild(pickWrap);
 
       row.appendChild(U.el('span', 'sub', '≥'));
-      var val = U.el('input', 'txt small');
+      var val = U.el('input', 'txt small mini');
       val.type = 'number'; val.value = String(a.minValue);
       val.onchange = function () { a.minValue = Number(val.value) || 0; };
       row.appendChild(val);
@@ -1472,9 +1512,8 @@
       DB.saveWatch({
         id: U.uuid(),
         label: wdItem.name,
-        // Nur dieses eine vnum: gleiche Namen mit anderer Schmiedestufe sind
-        // andere Items, und genau die will man meist NICHT mitgemeldet haben.
-        vnums: [Number(wdItem.vnum)],
+        // Eine einzelne Stufe ergibt ein vnum, der Gruppeneintrag alle zehn.
+        vnums: wdItem.vnums.map(Number),
         required_attrs: wdAttrs.filter(function (a) { return a.statId; }),
         max_price: PRICES.parseYang($('wdPrice').value),
         enabled: true,

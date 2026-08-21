@@ -248,23 +248,29 @@
    * schreibt. Hier steht nur, was die Oberflaeche daraus macht.
    */
 
-  /* Item-Suche fuer das Anlegen eines Eintrags. Sucht ueber alles, was gerade
-     am Markt liegt (~1.600 Items) — wonach nichts angeboten wird, kann man
-     auch nicht ueberwachen. */
+  /* Item-Suche fuer das Anlegen eines Eintrags. Gesucht wird ueber den
+     GESAMTEN Katalog (items.js, 12.273 Items), nicht nur ueber das, was
+     gerade angeboten wird — sonst koennte man genau das nicht ueberwachen,
+     was selten kommt. Ganz oben stehen die Gruppen ("Titanenschild +0–9"),
+     die alle Schmiedestufen auf einmal abdecken.
+
+     Was gerade am Markt liegt, steht als Hinweis dran (aus `market_items`). */
   P.searchItems = function (q, limit) {
-    q = String(q || '').trim().toLowerCase();
-    if (q.length < 2) return [];
-    var hits = (DB.data.market_items || []).filter(function (i) {
-      return String(i.name).toLowerCase().indexOf(q) !== -1;
+    var hits = ITEMS.search(q, limit || 30);
+    var market = DB.data.market_items || [];
+    return hits.map(function (h) {
+      var n = 0, cheapest = 0;
+      h.vnums.forEach(function (v) {
+        var m = market.find(function (x) { return Number(x.vnum) === Number(v); });
+        if (!m) return;
+        n += Number(m.listings) || 0;
+        var c = Number(m.cheapest) || 0;
+        if (c > 0 && (cheapest === 0 || c < cheapest)) cheapest = c;
+      });
+      h.listings = n;
+      h.cheapest = cheapest;
+      return h;
     });
-    hits.sort(function (a, b) {
-      // Treffer am Wortanfang zuerst, dann die mit mehr Angeboten.
-      var an = String(a.name).toLowerCase().indexOf(q) === 0 ? 0 : 1;
-      var bn = String(b.name).toLowerCase().indexOf(q) === 0 ? 0 : 1;
-      return an - bn || (b.listings || 0) - (a.listings || 0) ||
-             String(a.name).localeCompare(String(b.name));
-    });
-    return hits.slice(0, limit || 25);
   };
 
   /* Treffer, neueste zuerst. */

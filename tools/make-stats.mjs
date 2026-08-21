@@ -57,6 +57,16 @@ const out = `/* Bonusliste — ERZEUGT von tools/make-stats.mjs, nicht von Hand 
                 .replace(/%d/g, String(value));
   };
 
+  /* Suche fuer das Auswahlfeld. Ohne Suchwort kommen die haeufig gesuchten
+     Boni zuerst — sie stehen in TOP in genau dieser Reihenfolge. */
+  S.search = function (q, limit) {
+    q = String(q || '').trim().toLowerCase();
+    var hits = q
+      ? S.list.filter(function (s) { return S.label(s.id).toLowerCase().indexOf(q) !== -1; })
+      : S.list.slice();
+    return hits.slice(0, limit || 40);
+  };
+
   /* Name ohne Wert, fuer das Auswahlfeld: "Angriffswert" */
   S.label = function (id) {
     var s = byId[id];

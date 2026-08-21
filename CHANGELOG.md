@@ -10,16 +10,25 @@ Watchlist
   optional einen Höchstpreis — taucht so ein Angebot **neu** im Bazar auf,
   steht es oben unter **Treffer**, mit Ton und Browser-Benachrichtigung.
   Der Reiter *Bazar* trägt die Zahl der ungelesenen Treffer.
-- Gesucht wird über die **~1.600 Items, die gerade am Markt liegen**
-  (`market_items`, kommt mit jedem Push) — wonach nichts angeboten wird, kann
-  man auch nicht überwachen. Gewählt wird **genau ein vnum**: +0 und +5 sind
-  verschiedene Items.
+- Gesucht wird im **ganzen Item-Katalog** (12.273 Items aus den Client-Daten),
+  nicht nur in dem, was gerade angeboten wird — sonst könnte man genau das
+  nicht überwachen, was selten kommt. Was gerade am Markt liegt, steht als
+  Hinweis dran.
+- **Ganz oben steht der Eintrag über alle Schmiedestufen** („Titanenschild
+  +0–9"), darunter jede Stufe einzeln — wie in metin-bazar-pro.
+- Der **Bonus-Picker ist ein Suchfeld**, kein Dropdown: 303 Boni lassen sich
+  nicht scrollen. Ohne Suchwort stehen die häufig gesuchten oben.
+- Der **Höchstpreis ist optional** und auch so beschriftet.
 - Der Abgleich läuft in metin-bazar-pro, direkt nach jedem Poll und nur gegen
   die **neu aufgetauchten** Angebote. Ein eindeutiger Index auf
   (Eintrag, Angebots-Signatur) verhindert Doppelmeldungen, wenn ein Angebot
   kurz verschwindet und unverändert wiederkommt.
-- Neu: `stats.js` — 303 Boni aus den Client-Daten, erzeugt von
-  `tools/make-stats.mjs`. Spieldaten, deshalb Datei im Repo statt Supabase.
+- Neu: `stats.js` (303 Boni) und `items.js` (12.273 Items), erzeugt von
+  `tools/make-stats.mjs` / `tools/make-items.mjs`. Spieldaten, deshalb Dateien
+  im Repo statt in Supabase — über die Datenbank kämen sie bei jedem
+  Nachziehen erneut. Items mit Schmiedestufen liegen auf fortlaufenden vnums,
+  deshalb reicht [Basisname, erste vnum, Stufen] und die Datei bleibt bei
+  204 KB statt 436 KB.
 - Neu: `sql/2026-08-21_watchlist.sql` (drei Tabellen).
 
 ## 0.9.0 — 2026-08-20

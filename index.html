@@ -185,7 +185,11 @@
     </div>
     <div class="modal-body">
       <label class="fl" for="wdSearch">Item</label>
-      <input class="txt" id="wdSearch" placeholder="Name tippen, z. B. Krähenstahl" autocomplete="off" />
+      <input class="txt" id="wdSearch" placeholder="Name tippen, z. B. Titanenschild" autocomplete="off" />
+      <p class="sub">
+        Ganz oben stehen die Eintraege ueber <b>alle Schmiedestufen</b>
+        („Titanenschild +0–9"), darunter jede Stufe einzeln.
+      </p>
       <div class="wdlist" id="wdResults"></div>
 
       <label class="fl">Geforderte Boni</label>
@@ -196,8 +200,12 @@
       <div id="wdAttrs"></div>
       <button class="btn tiny" id="wdAddAttr">+ Bonus</button>
 
-      <label class="fl" for="wdPrice">Höchstpreis pro Stück</label>
-      <input class="txt small" id="wdPrice" placeholder="z. B. 20 Mio — leer = egal" />
+      <label class="fl" for="wdPrice">Höchstpreis pro Stück <span class="dim">— optional</span></label>
+      <p class="sub">
+        Leer lassen, wenn der Preis egal ist. Sonst wird nur gemeldet, was
+        höchstens so viel kostet: <b>20 Mio</b>, <b>3,5 Won</b>, <b>740k</b>.
+      </p>
+      <input class="txt small" id="wdPrice" placeholder="optional — z. B. 20 Mio" />
 
       <div class="row">
         <button class="btn primary" id="wdSave">auf die Liste</button>
@@ -274,6 +282,7 @@
 <script src="db.js"></script>
 <script src="channels.js"></script>
 <script src="stats.js"></script>
+<script src="items.js"></script>
 <script src="prices.js"></script>
 <script src="alarm.js"></script>
 <script src="app.js"></script>

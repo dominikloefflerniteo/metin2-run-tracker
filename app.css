@@ -435,3 +435,26 @@ table.mini input[type=color] {
 }
 #wdAttrs .row { margin: 3px 0; }
 #wdAttrs select { max-width: 260px; }
+
+/* Auswahl mit Suche — ein <select> mit 303 Boni waere unbedienbar. */
+.attrrow { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.combo { position: relative; flex: 1 1 auto; min-width: 0; }
+.combo .txt { width: 100%; }
+.combolist {
+  position: absolute; z-index: 5; left: 0; right: 0; top: 100%;
+  max-height: 190px; overflow-y: auto;
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: 7px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.45); margin-top: 2px;
+}
+.comboitem {
+  display: block; width: 100%; text-align: left;
+  background: none; border: none; color: var(--fg);
+  font: inherit; font-size: 12px; padding: 5px 8px; cursor: pointer;
+}
+.comboitem:hover { background: var(--bg-3); }
+.comboitem.top { color: var(--accent); }
+.txt.mini { width: 62px; }
+
+/* Eintraege ueber alle Schmiedestufen stehen oben und sind hervorgehoben. */
+.wdhit.grp { border-color: var(--accent); }
+.wdhit.grp span:first-child { color: var(--accent); font-weight: 700; }

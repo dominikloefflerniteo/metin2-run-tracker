@@ -36,7 +36,7 @@ async function main() {
   window.localStorage.setItem('m2rt.gate.v1', JSON.stringify({ ok: true, user: 'Jogoe' }));
 
   // Kein Netz im Test: kein window.supabase -> DB bleibt lokal.
-  for (const f of ['version.js', 'gate.js', 'util.js', 'db.js', 'channels.js', 'stats.js', 'prices.js', 'alarm.js', 'app.js']) {
+  for (const f of ['version.js', 'gate.js', 'util.js', 'db.js', 'channels.js', 'stats.js', 'items.js', 'prices.js', 'alarm.js', 'app.js']) {
     window.eval(fs.readFileSync(path.join(__dirname, f), 'utf8'));
   }
 
@@ -444,8 +444,15 @@ async function main() {
   ok(window.STATS.list.length > 200, 'die Bonusliste ist geladen (' + window.STATS.list.length + ' Boni)');
   ok(window.STATS.format(53, 30) === 'Angriffswert +30', 'ein Bonus wird lesbar: ' + window.STATS.format(53, 30));
   ok(window.STATS.label(53) === 'Angriffswert', 'und ohne Wert fuer die Auswahl: ' + window.STATS.label(53));
-  ok(window.PRICES.searchItems('kräh').length === 2, 'die Item-Suche findet beide Bögen');
+  const found = window.PRICES.searchItems('titanenschild', 30);
+  ok(found[0].group === true, 'ganz oben steht der Eintrag ueber alle Stufen: ' + found[0].name);
+  ok(found[0].vnums.length === 10, 'er deckt alle zehn Schmiedestufen ab');
+  ok(found[1].name === 'Titanenschild+0' && found[1].vnums.length === 1,
+     'darunter jede Stufe einzeln: ' + found[1].name);
+  ok(found.some((f) => f.name === 'Titanenschild+2'), 'auch Stufen, die gerade niemand anbietet');
+  ok(window.ITEMS.count > 12000, 'gesucht wird im ganzen Katalog (' + window.ITEMS.count + ' Items)');
   ok(window.PRICES.searchItems('k').length === 0, 'ein einzelner Buchstabe sucht noch nicht');
+  ok(window.STATS.search('angriffsg')[0].id === 7, 'die Bonus-Suche filtert: ' + window.STATS.label(window.STATS.search('angriffsg')[0].id));
 
   click(doc.querySelector('#tabs .tab[data-view="bazar"]'));
   const addBtn = [...$('bzBody').querySelectorAll('button')].find((b) => b.textContent === '+ Eintrag');
@@ -454,12 +461,15 @@ async function main() {
   ok(!$('watchDlg').hidden, 'der Dialog geht auf');
   ok($('wdSave').disabled, 'ohne gewaehltes Item laesst er sich nicht speichern');
 
-  $('wdSearch').value = 'krähenstahl';
+  $('wdSearch').value = 'titanenschild';
   $('wdSearch').dispatchEvent(new window.Event('input', { bubbles: true }));
   const first = $('wdResults').querySelector('.wdhit');
-  ok(!!first && first.textContent.indexOf('Krähenstahlbogen+5') !== -1,
-     'das haeufiger angebotene Item steht oben: ' + (first && first.textContent));
-  click(first);
+  ok(!!first && first.classList.contains('grp'),
+     'der Gruppeneintrag steht oben: ' + (first && first.textContent));
+  const single = [...$('wdResults').querySelectorAll('.wdhit')]
+    .find((b) => b.textContent.indexOf('Titanenschild+2') === 0);
+  ok(!!single, 'einzelne Stufen stehen darunter');
+  click(single);
   ok(!$('wdSave').disabled, 'jetzt kann gespeichert werden');
 
   click($('wdAddAttr'));
@@ -470,7 +480,8 @@ async function main() {
   ok($('watchDlg').hidden, 'Dialog schliesst');
   ok(DB.data.watchlist.length === 1, 'Eintrag angelegt');
   const w = DB.data.watchlist[0];
-  ok(w.vnums.length === 1 && w.vnums[0] === 1234, 'nur das gewaehlte vnum, nicht die anderen Schmiedestufen');
+  ok(w.vnums.length === 1 && w.vnums[0] === 13142,
+     'eine einzelne Stufe ergibt genau ein vnum: ' + JSON.stringify(w.vnums));
   ok(w.required_attrs[0].statId === 53 && w.required_attrs[0].minValue === 30,
      'Bonus mit Mindestwert gespeichert');
   ok(w.max_price === 80000000, 'Hoechstpreis verstanden: ' + window.PRICES.fmt(w.max_price));

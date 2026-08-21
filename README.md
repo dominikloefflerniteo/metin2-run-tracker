@@ -214,15 +214,27 @@ Mindestwert angeben, optional einen Höchstpreis. Taucht so ein Angebot **neu**
 im Bazar auf, steht es oben unter **Treffer** — mit Ton und Browser-Benachrichtigung,
 und der Reiter trägt die Zahl der ungelesenen Treffer.
 
-Gesucht wird über `market_items`, also über die ~1.600 Items, die **gerade am
-Markt liegen**. Wonach nichts angeboten wird, kann man auch nicht überwachen.
-Ein Eintrag zielt auf **genau ein vnum**: *Krähenstahlbogen+0* und *+5* sind
-verschiedene Items, und meist will man nur eines davon gemeldet bekommen.
+Gesucht wird im **ganzen Item-Katalog** (`items.js`, 12.273 Items), nicht nur in
+dem, was gerade angeboten wird — sonst könnte man genau das nicht überwachen,
+was selten kommt. Was gerade am Markt liegt (`market_items`), steht als Hinweis
+an der Zeile.
+
+**Ganz oben stehen die Einträge über alle Schmiedestufen** — *Titanenschild
++0–9* deckt alle zehn vnums ab —, darunter jede Stufe einzeln. So kommt man mit
+einem Eintrag durch, wenn die Stufe egal ist, und kann trotzdem gezielt nur
+*+9* überwachen.
 
 Alle geforderten Boni müssen erfüllt sein, jeweils mit **mindestens** dem
-angegebenen Wert; keine Zeile heißt „jeder Bonussatz passt". Die Bonusnamen
-stehen in `stats.js` (303 Stück, erzeugt von `tools/make-stats.mjs` aus den
-Client-Daten in `metin2shoptracker/configs/stat_map.json`).
+angegebenen Wert; keine Zeile heißt „jeder Bonussatz passt". Die Auswahl ist ein
+**Suchfeld**, kein Dropdown: 303 Boni scrollt niemand durch. Ohne Suchwort
+stehen die häufig gesuchten oben (Angriffswert, Krit, Durchbohren, Stark gegen …).
+
+Beides sind Spieldaten und liegen deshalb als **Dateien im Repo**, nicht in
+Supabase — über die Datenbank kämen sie bei jedem Nachziehen erneut über die
+Leitung. `stats.js` (Boni) und `items.js` (Katalog) werden von
+`tools/make-stats.mjs` bzw. `tools/make-items.mjs` aus
+`metin2shoptracker/configs/` erzeugt; nach einem Client-Patch einmal neu laufen
+lassen.
 
 Der Abgleich läuft **nicht** im Browser, sondern in metin-bazar-pro direkt nach
 jedem Poll, und nur gegen die neu aufgetauchten Angebote — sonst meldete jeder
