@@ -22,7 +22,8 @@
   /* chest_values / item_prices werden NUR gelesen — sie kommen vom Push-Job
      auf Dominiks PC (metin-bazar-pro). run_loot ist wieder beidseitig. */
   var TABLES = ['chars', 'timers', 'run_types', 'channels', 'spawns',
-                'chest_values', 'item_prices', 'run_loot', 'price_overrides', 'alchemy_prices'];
+                'chest_values', 'item_prices', 'run_loot', 'price_overrides', 'alchemy_prices',
+                'market_items', 'watchlist', 'watch_hits'];
 
   var DEFAULT_RUN_TYPES = [
     { key: 'hydra',  label: 'Hydra',     seconds: 20 * 60,   from_start: true,  color: '#e0574f', sort: 10, enabled: true },
@@ -37,7 +38,8 @@
     connected: false,
     creds: U.store.get(CRED_KEY, { url: '', key: '' }),
     data: { chars: [], timers: [], run_types: DEFAULT_RUN_TYPES.slice(), channels: [], spawns: [],
-            chest_values: [], item_prices: [], run_loot: [], price_overrides: [], alchemy_prices: [] },
+            chest_values: [], item_prices: [], run_loot: [], price_overrides: [], alchemy_prices: [],
+            market_items: [], watchlist: [], watch_hits: [] },
     status: { state: 'off', text: 'nur lokal' },
     DEFAULT_RUN_TYPES: DEFAULT_RUN_TYPES
   };
@@ -65,7 +67,8 @@
     if (cached && cached.chars) {
       DB.data = cached;
       if (!DB.data.spawns) DB.data.spawns = [];   // aelterer Zwischenspeicher
-      ['chest_values', 'item_prices', 'run_loot', 'price_overrides', 'alchemy_prices'].forEach(function (t) {
+      ['chest_values', 'item_prices', 'run_loot', 'price_overrides', 'alchemy_prices',
+                'market_items', 'watchlist', 'watch_hits'].forEach(function (t) {
         if (!DB.data[t]) DB.data[t] = [];
       });
       if (!DB.data.run_types || !DB.data.run_types.length) {
@@ -373,6 +376,41 @@
      Wert erhalten bleibt, wenn man es wieder mitzaehlt. */
   DB.setPriceIgnored = function (vnum, on, name, user) {
     return saveOverride(vnum, { ignored: !!on }, name, user);
+  };
+
+  /* --------------------------------------------------------- Watchlist */
+
+  DB.saveWatch = function (row) {
+    row.updated_at = new Date().toISOString();
+    return push('watchlist', row, 'id', ['id']);
+  };
+
+  DB.deleteWatch = function (id) {
+    localDelete('watch_hits', { watch_id: id });   // die Treffer haengen dran
+    localDelete('watchlist', { id: id });
+    if (!client) return Promise.resolve(true);
+    return client.from('watchlist').delete().eq('id', id).then(function () { return true; });
+  };
+
+  /* Treffer abhaken. Ohne id: alle. */
+  DB.markHitsSeen = function (id) {
+    DB.data.watch_hits.forEach(function (h) {
+      if (!id || h.id === id) h.seen = true;
+    });
+    cache(); emit();
+    if (!client) return Promise.resolve(true);
+    var q = client.from('watch_hits').update({ seen: true });
+    if (id) q = q.eq('id', id); else q = q.eq('seen', false);
+    return q.then(function () { return true; });
+  };
+
+  DB.deleteHits = function () {
+    DB.data.watch_hits = [];
+    cache(); emit();
+    if (!client) return Promise.resolve(true);
+    // PostgREST verlangt einen Filter — "alles, was existiert".
+    return client.from('watch_hits').delete().not('id', 'is', null)
+      .then(function () { return true; });
   };
 
   DB.lootFor = function (runKey) {

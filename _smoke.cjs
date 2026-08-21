@@ -36,7 +36,7 @@ async function main() {
   window.localStorage.setItem('m2rt.gate.v1', JSON.stringify({ ok: true, user: 'Jogoe' }));
 
   // Kein Netz im Test: kein window.supabase -> DB bleibt lokal.
-  for (const f of ['version.js', 'gate.js', 'util.js', 'db.js', 'channels.js', 'prices.js', 'alarm.js', 'app.js']) {
+  for (const f of ['version.js', 'gate.js', 'util.js', 'db.js', 'channels.js', 'stats.js', 'prices.js', 'alarm.js', 'app.js']) {
     window.eval(fs.readFileSync(path.join(__dirname, f), 'utf8'));
   }
 
@@ -434,6 +434,71 @@ async function main() {
   ok(DB.data.price_overrides.length === 0, 'leeres Feld nimmt die Überschreibung wieder zurück');
   click($('vdClose'));
   ok($('valueDlg').hidden === true, 'Fenster schließt');
+
+  console.log('\n[Watchlist]');
+  DB.data.market_items = [
+    { server: 'x', vnum: 1234, name: 'Krähenstahlbogen+5', listings: 4, cheapest: 90000000, fetched_at: new Date().toISOString() },
+    { server: 'x', vnum: 1230, name: 'Krähenstahlbogen+0', listings: 1, cheapest: 5000000, fetched_at: new Date().toISOString() },
+    { server: 'x', vnum: 27992, name: 'Weiße Perle', listings: 78, cheapest: 17000000, fetched_at: new Date().toISOString() }
+  ];
+  ok(window.STATS.list.length > 200, 'die Bonusliste ist geladen (' + window.STATS.list.length + ' Boni)');
+  ok(window.STATS.format(53, 30) === 'Angriffswert +30', 'ein Bonus wird lesbar: ' + window.STATS.format(53, 30));
+  ok(window.STATS.label(53) === 'Angriffswert', 'und ohne Wert fuer die Auswahl: ' + window.STATS.label(53));
+  ok(window.PRICES.searchItems('kräh').length === 2, 'die Item-Suche findet beide Bögen');
+  ok(window.PRICES.searchItems('k').length === 0, 'ein einzelner Buchstabe sucht noch nicht');
+
+  click(doc.querySelector('#tabs .tab[data-view="bazar"]'));
+  const addBtn = [...$('bzBody').querySelectorAll('button')].find((b) => b.textContent === '+ Eintrag');
+  ok(!!addBtn, 'im Bazar steht ein Knopf zum Anlegen');
+  click(addBtn);
+  ok(!$('watchDlg').hidden, 'der Dialog geht auf');
+  ok($('wdSave').disabled, 'ohne gewaehltes Item laesst er sich nicht speichern');
+
+  $('wdSearch').value = 'krähenstahl';
+  $('wdSearch').dispatchEvent(new window.Event('input', { bubbles: true }));
+  const first = $('wdResults').querySelector('.wdhit');
+  ok(!!first && first.textContent.indexOf('Krähenstahlbogen+5') !== -1,
+     'das haeufiger angebotene Item steht oben: ' + (first && first.textContent));
+  click(first);
+  ok(!$('wdSave').disabled, 'jetzt kann gespeichert werden');
+
+  click($('wdAddAttr'));
+  $('wdAttrs').querySelector('input[type=number]').value = '30';
+  $('wdAttrs').querySelector('input[type=number]').dispatchEvent(new window.Event('change', { bubbles: true }));
+  $('wdPrice').value = '80 Mio';
+  click($('wdSave'));
+  ok($('watchDlg').hidden, 'Dialog schliesst');
+  ok(DB.data.watchlist.length === 1, 'Eintrag angelegt');
+  const w = DB.data.watchlist[0];
+  ok(w.vnums.length === 1 && w.vnums[0] === 1234, 'nur das gewaehlte vnum, nicht die anderen Schmiedestufen');
+  ok(w.required_attrs[0].statId === 53 && w.required_attrs[0].minValue === 30,
+     'Bonus mit Mindestwert gespeichert');
+  ok(w.max_price === 80000000, 'Hoechstpreis verstanden: ' + window.PRICES.fmt(w.max_price));
+
+  // Ein Treffer, wie ihn der Push-Job schreiben wuerde.
+  DB.data.watch_hits = [{
+    id: 'h1', watch_id: w.id, label: w.label, vnum: 1234, name: 'Krähenstahlbogen+5',
+    seller: 'Testverkaeufer', price: 75000000, quantity: 1,
+    attrs: [[53, 35], [15, 10]], seen: false, found_at: new Date().toISOString()
+  }];
+  ok(window.PRICES.unseenCount() === 1, 'ein ungelesener Treffer');
+  ok(window.PRICES.attrText([[53, 35], [15, 10]]).indexOf('Angriffswert +35') === 0,
+     'die Boni werden lesbar: ' + window.PRICES.attrText([[53, 35], [15, 10]]));
+
+  $('filter').dispatchEvent(new window.Event('input', { bubbles: true }));   // render()
+  const badge = doc.querySelector('#tabs .tab[data-view="bazar"] .badge');
+  ok(!!badge && badge.textContent === '1', 'der Reiter zeigt die Zahl der neuen Treffer');
+  ok($('bzBody').textContent.indexOf('Testverkaeufer') !== -1, 'der Treffer steht im Bazar');
+
+  DB.markHitsSeen('h1');
+  ok(window.PRICES.unseenCount() === 0, 'abgehakt');
+  $('filter').dispatchEvent(new window.Event('input', { bubbles: true }));
+  ok(!doc.querySelector('#tabs .tab[data-view="bazar"] .badge'), 'und die Zahl am Reiter verschwindet');
+
+  DB.deleteWatch(w.id);
+  ok(DB.data.watchlist.length === 0 && DB.data.watch_hits.length === 0,
+     'ein geloeschter Eintrag nimmt seine Treffer mit');
+  click(doc.querySelector('#tabs .tab[data-view="runs"]'));
 
   console.log('\n[Gate]');
   const dom2 = new JSDOM(html, { runScripts: 'outside-only', url: 'http://localhost/' });

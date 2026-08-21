@@ -241,6 +241,47 @@
     };
   };
 
+  /* ========================================================== Watchlist
+   *
+   * Der Abgleich passiert NICHT hier: die Seite sieht den Markt nie, sie kennt
+   * nur die Treffer, die metin-bazar-pro nach jedem Poll in `watch_hits`
+   * schreibt. Hier steht nur, was die Oberflaeche daraus macht.
+   */
+
+  /* Item-Suche fuer das Anlegen eines Eintrags. Sucht ueber alles, was gerade
+     am Markt liegt (~1.600 Items) — wonach nichts angeboten wird, kann man
+     auch nicht ueberwachen. */
+  P.searchItems = function (q, limit) {
+    q = String(q || '').trim().toLowerCase();
+    if (q.length < 2) return [];
+    var hits = (DB.data.market_items || []).filter(function (i) {
+      return String(i.name).toLowerCase().indexOf(q) !== -1;
+    });
+    hits.sort(function (a, b) {
+      // Treffer am Wortanfang zuerst, dann die mit mehr Angeboten.
+      var an = String(a.name).toLowerCase().indexOf(q) === 0 ? 0 : 1;
+      var bn = String(b.name).toLowerCase().indexOf(q) === 0 ? 0 : 1;
+      return an - bn || (b.listings || 0) - (a.listings || 0) ||
+             String(a.name).localeCompare(String(b.name));
+    });
+    return hits.slice(0, limit || 25);
+  };
+
+  /* Treffer, neueste zuerst. */
+  P.hits = function (onlyUnseen) {
+    return (DB.data.watch_hits || [])
+      .filter(function (h) { return !onlyUnseen || !h.seen; })
+      .sort(function (a, b) { return Date.parse(b.found_at) - Date.parse(a.found_at); });
+  };
+
+  P.unseenCount = function () { return P.hits(true).length; };
+
+  /* Boni eines Treffers als lesbare Zeile. */
+  P.attrText = function (attrs) {
+    if (!attrs || !attrs.length) return 'ohne Boni';
+    return attrs.map(function (a) { return STATS.format(a[0], a[1]); }).join(' · ');
+  };
+
   /* ====================================================== Drachensteine
    *
    * Ein Aufstieg verbraucht ZWEI Steine, im Fehlschlag kommt EINER zurueck.

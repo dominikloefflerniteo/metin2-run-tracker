@@ -176,6 +176,36 @@
   </div>
 </div>
 
+<!-- ------------------------------------------------------ Watchlist-Dialog -->
+<div class="modal" id="watchDlg" hidden>
+  <div class="modal-box narrow">
+    <div class="modal-head">
+      <h2>Auf die Watchlist</h2>
+      <button class="btn ghost" id="wdClose">schließen</button>
+    </div>
+    <div class="modal-body">
+      <label class="fl" for="wdSearch">Item</label>
+      <input class="txt" id="wdSearch" placeholder="Name tippen, z. B. Krähenstahl" autocomplete="off" />
+      <div class="wdlist" id="wdResults"></div>
+
+      <label class="fl">Geforderte Boni</label>
+      <p class="sub">
+        Alle müssen erfüllt sein, jeweils mit mindestens dem angegebenen Wert.
+        Keine Zeile = jeder Bonussatz passt.
+      </p>
+      <div id="wdAttrs"></div>
+      <button class="btn tiny" id="wdAddAttr">+ Bonus</button>
+
+      <label class="fl" for="wdPrice">Höchstpreis pro Stück</label>
+      <input class="txt small" id="wdPrice" placeholder="z. B. 20 Mio — leer = egal" />
+
+      <div class="row">
+        <button class="btn primary" id="wdSave">auf die Liste</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ---------------------------------------------------------- Wert-Dialog -->
 <div class="modal" id="valueDlg" hidden>
   <div class="modal-box">
@@ -243,6 +273,7 @@
 <script src="util.js"></script>
 <script src="db.js"></script>
 <script src="channels.js"></script>
+<script src="stats.js"></script>
 <script src="prices.js"></script>
 <script src="alarm.js"></script>
 <script src="app.js"></script>

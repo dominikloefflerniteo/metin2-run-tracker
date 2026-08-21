@@ -9,7 +9,7 @@
  *   erste Stelle   -> wenn es sich rund anfühlt (1.0 = im täglichen Einsatz)
  */
 window.APP_VERSION = {
-  number: '0.9.0',
-  date: '2026-08-20',
-  note: 'Reiter Bazar: Truhenwerte, Run-Wert und Alchemie'
+  number: '0.10.0',
+  date: '2026-08-21',
+  note: 'Watchlist mit Boni-Filter und Treffer-Alarm'
 };

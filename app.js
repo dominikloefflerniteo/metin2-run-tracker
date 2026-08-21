@@ -298,6 +298,8 @@
 
     renderChannels();
     renderSpawns();
+    paintTabBadge();
+    checkHitAlarm();
 
     if (prefs.view === 'bazar') renderBazar();
   }
@@ -561,9 +563,223 @@
       return;
     }
 
+    bazarHits(body);
+    bazarWatchlist(body);
     bazarRuns(body);
     bazarChests(body);
     bazarAlchemy(body);
+  }
+
+  /* --- Treffer aus der Watchlist --- */
+  function bazarHits(body) {
+    var hits = PRICES.hits(false).slice(0, 50);
+    if (!hits.length) return;
+
+    var unseen = PRICES.unseenCount();
+    var sec = U.el('section', 'card');
+    var lab = U.el('div', 'label', 'Treffer');
+    if (unseen) lab.appendChild(U.el('span', 'badge', String(unseen) + ' neu'));
+    sec.appendChild(lab);
+
+    var row = U.el('div', 'row');
+    var bSeen = U.el('button', 'btn tiny', 'alle gelesen');
+    bSeen.onclick = function () { DB.markHitsSeen(); renderBazar(); };
+    row.appendChild(bSeen);
+    var bClear = U.el('button', 'btn tiny danger', 'Liste leeren');
+    bClear.onclick = function () {
+      if (!confirm('Alle Treffer löschen? Das gilt für alle.')) return;
+      DB.deleteHits(); renderBazar();
+    };
+    row.appendChild(bClear);
+    sec.appendChild(row);
+
+    var t = U.el('table', 'mini hits');
+    var hr = U.el('tr');
+    ['', 'gefunden', 'Item', 'Boni', 'Verkäufer', 'Preis'].forEach(function (h) {
+      hr.appendChild(U.el('th', null, h));
+    });
+    t.appendChild(hr);
+
+    hits.forEach(function (h) {
+      var tr = U.el('tr', h.seen ? 'seen' : 'fresh');
+      var tdM = U.el('td');
+      var dot = U.el('button', 'hitdot' + (h.seen ? '' : ' on'));
+      dot.title = h.seen ? 'gelesen' : 'als gelesen markieren';
+      dot.onclick = function () { DB.markHitsSeen(h.id); renderBazar(); };
+      tdM.appendChild(dot); tr.appendChild(tdM);
+
+      tr.appendChild(U.el('td', 'dim', U.fmtTime(h.found_at)));
+      tr.appendChild(U.el('td', null, h.name + (h.quantity > 1 ? ' ×' + h.quantity : '')));
+      var tdA = U.el('td', 'dim', PRICES.attrText(h.attrs));
+      tdA.title = h.label;
+      tr.appendChild(tdA);
+      tr.appendChild(U.el('td', 'dim', h.seller));
+      tr.appendChild(U.el('td', null, PRICES.fmt(h.price)));
+      t.appendChild(tr);
+    });
+    sec.appendChild(t);
+    body.appendChild(sec);
+  }
+
+  /* --- Watchlist verwalten --- */
+  function bazarWatchlist(body) {
+    var sec = U.el('section', 'card');
+    sec.appendChild(U.el('div', 'label', 'Watchlist'));
+    sec.appendChild(U.el('p', 'sub',
+      'Item suchen, gewünschte Boni angeben — sobald so ein Angebot neu im Bazar ' +
+      'auftaucht, erscheint es oben unter Treffer (mit Ton, wenn eingeschaltet). ' +
+      'Der Abgleich läuft auf dem Rechner mit metin-bazar-pro, also nur solange der läuft.'));
+
+    var list = DB.data.watchlist.slice().sort(function (a, b) {
+      return String(a.label).localeCompare(String(b.label));
+    });
+
+    if (list.length) {
+      var t = U.el('table', 'mini');
+      var hr = U.el('tr');
+      ['Item', 'geforderte Boni', 'Höchstpreis', 'aktiv', ''].forEach(function (h) {
+        hr.appendChild(U.el('th', null, h));
+      });
+      t.appendChild(hr);
+
+      list.forEach(function (w) {
+        var tr = U.el('tr');
+        var tdN = U.el('td', null, w.label);
+        tdN.title = (w.vnums || []).length + ' vnum(s): ' + (w.vnums || []).join(', ');
+        tr.appendChild(tdN);
+
+        var attrs = w.required_attrs || [];
+        tr.appendChild(U.el('td', 'dim', attrs.length
+          ? attrs.map(function (a) { return STATS.label(a.statId) + ' ≥ ' + a.minValue; }).join(' · ')
+          : 'egal'));
+
+        var tdP = U.el('td');
+        var inP = U.el('input', 'txt small');
+        inP.value = Number(w.max_price) ? PRICES.fmtShort(w.max_price) : '';
+        inP.placeholder = 'egal';
+        inP.title = 'Höchstpreis pro Stück — "3,5 Won", "20 Mio", leer = egal';
+        inP.onchange = function () {
+          w.max_price = PRICES.parseYang(inP.value);
+          DB.saveWatch(w); renderBazar();
+        };
+        tdP.appendChild(inP); tr.appendChild(tdP);
+
+        var tdE = U.el('td');
+        var cb = U.el('input');
+        cb.type = 'checkbox'; cb.checked = w.enabled !== false;
+        cb.onchange = function () { w.enabled = cb.checked; DB.saveWatch(w); renderBazar(); };
+        tdE.appendChild(cb); tr.appendChild(tdE);
+
+        var tdX = U.el('td');
+        var del = U.el('button', 'btn tiny danger', '×');
+        del.title = 'Eintrag samt Treffern löschen';
+        del.onclick = function () { DB.deleteWatch(w.id); renderBazar(); };
+        tdX.appendChild(del); tr.appendChild(tdX);
+
+        t.appendChild(tr);
+      });
+      sec.appendChild(t);
+    } else {
+      sec.appendChild(U.el('p', 'side-empty', 'noch nichts auf der Liste'));
+    }
+
+    var add = U.el('button', 'btn', '+ Eintrag');
+    add.onclick = openWatchDlg;
+    sec.appendChild(add);
+
+    if (!DB.data.market_items.length) {
+      sec.appendChild(U.el('p', 'sub',
+        'Der Item-Katalog fehlt noch — er kommt mit dem nächsten Push vom Rechner.'));
+    }
+    body.appendChild(sec);
+  }
+
+  /* --- Eintrag anlegen --- */
+  var wdItem = null;      // gewaehltes Item { vnum, name }
+  var wdAttrs = [];       // [{ statId, minValue }]
+
+  function openWatchDlg() {
+    wdItem = null;
+    wdAttrs = [];
+    $('wdSearch').value = '';
+    $('wdPrice').value = '';
+    paintWatchDlg();
+    $('watchDlg').hidden = false;
+    $('wdSearch').focus();
+  }
+
+  function paintWatchDlg() {
+    // Suchergebnisse
+    var res = $('wdResults');
+    res.innerHTML = '';
+    var q = $('wdSearch').value;
+    if (!wdItem) {
+      var hits = PRICES.searchItems(q, 20);
+      if (q.trim().length < 2) {
+        res.appendChild(U.el('p', 'side-empty', 'mindestens zwei Buchstaben'));
+      } else if (!hits.length) {
+        res.appendChild(U.el('p', 'side-empty', 'nichts gefunden — liegt gerade nichts davon im Bazar?'));
+      }
+      hits.forEach(function (i) {
+        var b = U.el('button', 'wdhit');
+        b.appendChild(U.el('span', null, i.name));
+        b.appendChild(U.el('span', 'dim', i.listings + '× · ab ' + PRICES.fmtShort(i.cheapest)));
+        b.onclick = function () { wdItem = i; paintWatchDlg(); };
+        res.appendChild(b);
+      });
+    } else {
+      var pick = U.el('div', 'wdpick');
+      pick.appendChild(U.el('b', null, wdItem.name));
+      var chg = U.el('button', 'btn tiny', 'ändern');
+      chg.onclick = function () { wdItem = null; paintWatchDlg(); };
+      pick.appendChild(chg);
+      res.appendChild(pick);
+    }
+
+    // Bonuszeilen
+    var box = $('wdAttrs');
+    box.innerHTML = '';
+    wdAttrs.forEach(function (a, idx) {
+      var row = U.el('div', 'row');
+      var sel = U.el('select', 'txt small');
+      STATS.list.forEach(function (s) {
+        var o = U.el('option', null, STATS.label(s.id));
+        o.value = String(s.id);
+        if (s.id === a.statId) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.onchange = function () { a.statId = Number(sel.value); };
+      row.appendChild(sel);
+
+      row.appendChild(U.el('span', 'sub', '≥'));
+      var val = U.el('input', 'txt small');
+      val.type = 'number'; val.value = String(a.minValue);
+      val.onchange = function () { a.minValue = Number(val.value) || 0; };
+      row.appendChild(val);
+
+      var del = U.el('button', 'btn tiny danger', '×');
+      del.onclick = function () { wdAttrs.splice(idx, 1); paintWatchDlg(); };
+      row.appendChild(del);
+      box.appendChild(row);
+    });
+
+    $('wdSave').disabled = !wdItem;
+  }
+
+  /* --- Ton bei neuen Treffern --- */
+  var lastHitCount = null;
+
+  function checkHitAlarm() {
+    var n = PRICES.unseenCount();
+    if (lastHitCount === null) { lastHitCount = n; return; }   // beim Start nicht laeuten
+    if (n > lastHitCount) {
+      var newest = PRICES.hits(true)[0];
+      ALARM.fire('_default',
+        'Watchlist-Treffer',
+        newest ? newest.name + ' von ' + newest.seller + ' — ' + PRICES.fmt(newest.price)
+               : (n - lastHitCount) + ' neue Treffer');
+    }
+    lastHitCount = n;
   }
 
   /* --- Was lohnt sich: Runs nach Stundenwert --- */
@@ -730,6 +946,19 @@
       b.classList.toggle('on', b.dataset.view === prefs.view);
     });
     if (prefs.view === 'bazar') renderBazar();
+  }
+
+  /* Ungelesene Watchlist-Treffer als Zahl am Reiter — sonst sieht man sie
+     nur, wenn man zufaellig im Bazar steht. */
+  function paintTabBadge() {
+    var n = PRICES.unseenCount();
+    var tab = document.querySelector('#tabs .tab[data-view="bazar"]');
+    if (!tab) return;
+    var b = tab.querySelector('.badge');
+    if (!n) { if (b) b.remove(); return; }
+    if (!b) { b = U.el('span', 'badge'); tab.appendChild(b); }
+    b.textContent = String(n);
+    b.title = n + ' neue Treffer aus der Watchlist';
   }
 
   /* --------------------------------------------------- Beute bearbeiten */
@@ -1229,6 +1458,32 @@
     Array.prototype.forEach.call(document.querySelectorAll('#tabs .tab'), function (b) {
       b.onclick = function () { switchView(b.dataset.view); };
     });
+
+    /* --- Watchlist-Dialog --- */
+    $('wdClose').onclick = function () { $('watchDlg').hidden = true; };
+    $('wdSearch').oninput = function () { if (!wdItem) paintWatchDlg(); };
+    $('wdAddAttr').onclick = function () {
+      // Angriffswert ist der haeufigste Wunsch — als Vorgabe brauchbar.
+      wdAttrs.push({ statId: 53, minValue: 0 });
+      paintWatchDlg();
+    };
+    $('wdSave').onclick = function () {
+      if (!wdItem) return;
+      DB.saveWatch({
+        id: U.uuid(),
+        label: wdItem.name,
+        // Nur dieses eine vnum: gleiche Namen mit anderer Schmiedestufe sind
+        // andere Items, und genau die will man meist NICHT mitgemeldet haben.
+        vnums: [Number(wdItem.vnum)],
+        required_attrs: wdAttrs.filter(function (a) { return a.statId; }),
+        max_price: PRICES.parseYang($('wdPrice').value),
+        enabled: true,
+        by_user: ZGATE.user() || '',
+        note: ''
+      });
+      $('watchDlg').hidden = true;
+      renderBazar();
+    };
 
     /* --- Wert-Dialog --- */
     $('vdClose').onclick = function () { $('valueDlg').hidden = true; };

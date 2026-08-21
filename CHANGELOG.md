@@ -3,6 +3,25 @@
 Neuestes zuerst. Die oberste Nummer muss mit `version.js` übereinstimmen —
 der Smoketest prüft das.
 
+## 0.10.0 — 2026-08-21
+Watchlist
+
+- **Watchlist im Bazar**: Item suchen, geforderte Boni mit Mindestwert angeben,
+  optional einen Höchstpreis — taucht so ein Angebot **neu** im Bazar auf,
+  steht es oben unter **Treffer**, mit Ton und Browser-Benachrichtigung.
+  Der Reiter *Bazar* trägt die Zahl der ungelesenen Treffer.
+- Gesucht wird über die **~1.600 Items, die gerade am Markt liegen**
+  (`market_items`, kommt mit jedem Push) — wonach nichts angeboten wird, kann
+  man auch nicht überwachen. Gewählt wird **genau ein vnum**: +0 und +5 sind
+  verschiedene Items.
+- Der Abgleich läuft in metin-bazar-pro, direkt nach jedem Poll und nur gegen
+  die **neu aufgetauchten** Angebote. Ein eindeutiger Index auf
+  (Eintrag, Angebots-Signatur) verhindert Doppelmeldungen, wenn ein Angebot
+  kurz verschwindet und unverändert wiederkommt.
+- Neu: `stats.js` — 303 Boni aus den Client-Daten, erzeugt von
+  `tools/make-stats.mjs`. Spieldaten, deshalb Datei im Repo statt Supabase.
+- Neu: `sql/2026-08-21_watchlist.sql` (drei Tabellen).
+
 ## 0.9.0 — 2026-08-20
 Reiter Bazar: was ein Run wert ist, und ob sich Alchemie lohnt
 
